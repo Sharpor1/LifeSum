@@ -49,3 +49,9 @@ export interface AppCfg {
   printBg: "white" | "solid";
   fontSize: number;
 }
+
+export interface CustomBg {
+  id: string;
+  dataUrl: string;
+  label: string;
+}

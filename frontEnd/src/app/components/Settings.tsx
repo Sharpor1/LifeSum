@@ -2,9 +2,9 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   User, Palette, Bell, Trophy, Plus, Trash2, X, Check, Type,
-  ChevronDown, ChevronUp
+  ChevronDown, ChevronUp, Upload, Image
 } from "lucide-react";
-import type { Activity, AppCfg, Logro, Project } from "../types";
+import type { Activity, AppCfg, CustomBg, Logro, Project } from "../types";
 import { ha } from "../utils";
 import { PROJ_COLORS, EMOJIS } from "../constants";
 import AddLogroForm from "./AddLogroForm";
@@ -17,11 +17,15 @@ interface SettingsProps {
   allActs: Activity[];
   openModal: (k: "addProject" | null, preset?: Record<string, unknown>) => void;
   toggleProjectLogro: (projId: string, logroId: string) => void;
+  customBackgrounds: CustomBg[];
+  setCustomBackgrounds: (s: CustomBg[] | ((prev: CustomBg[]) => CustomBg[])) => void;
+  handleBackgroundUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   dark: boolean; acc: string; tp: string; ts: string; gc: string; gs: React.CSSProperties;
 }
 
 export default function Settings({
   cfg, upCfg, projects, setProjects, allActs, openModal, toggleProjectLogro,
+  customBackgrounds, setCustomBackgrounds, handleBackgroundUpload,
   dark, acc, tp, ts, gc, gs,
 }: SettingsProps) {
   const [bgInput, setBgInput] = useState(cfg.bgImage);
@@ -88,42 +92,59 @@ export default function Settings({
             </div>
           </div>
         </div>
-        <div className="mb-5">
-          <p className={`text-sm font-medium ${tp} mb-2`}>Fondo</p>
-          <div className="flex gap-1.5 mb-3">
-            {(["image", "color"] as const).map(t => (
-              <button key={t} onClick={() => upCfg({ bgType: t })}
-                className={`px-3 py-1.5 rounded-xl text-xs font-medium cursor-pointer border border-white/20 ${cfg.bgType === t ? "text-white" : ts}`}
-                style={cfg.bgType === t ? { backgroundColor: ha(acc, 0.5) } : {}}>
-                {t === "image" ? "🖼 Imagen" : "🎨 Color sólido"}
-              </button>
-            ))}
-          </div>
-          {cfg.bgType === "image" ? (
-            <>
-              <div className="flex gap-2 mb-2">
-                <input value={bgInput} onChange={e => setBgInput(e.target.value)}
-                  className={`flex-1 px-3 py-1.5 rounded-xl text-xs ${gc} ${tp} outline-none`} style={gs} placeholder="URL..." />
-                <button onClick={() => upCfg({ bgImage: bgInput })}
-                  className="px-3 py-1.5 rounded-xl text-xs text-white font-medium cursor-pointer" style={{ backgroundColor: acc }}>Aplicar</button>
-              </div>
-              <div className="grid grid-cols-3 gap-1.5">
-                {[
-                  ["https://images.unsplash.com/photo-1464802686167-b939a6910659", "Galaxia"],
-                  ["https://images.unsplash.com/photo-1419242902214-272b3f66ee7a", "Nebulosa"],
-                  ["https://images.unsplash.com/photo-1534796636912-3b95b3ab5986", "Espacio"],
-                  ["https://images.unsplash.com/photo-1506905925346-21bda4d32df4", "Montañas"],
-                  ["https://images.unsplash.com/photo-1519681393784-d120267933ba", "Noche"],
-                  ["https://images.unsplash.com/photo-1520034475321-cbe63696469a", "Aurora"],
-                ].map(([base, label]) => (
-                  <button key={base}
-                    onClick={() => { const u = `${base}?w=1920&h=1080&fit=crop&auto=format`; setBgInput(u); upCfg({ bgImage: u }); }}
-                    className="h-14 rounded-xl overflow-hidden cursor-pointer transition-all hover:ring-2 hover:ring-white"
-                    style={{ backgroundImage: `url(${base}?w=400&h=200&fit=crop&auto=format)`, backgroundSize: "cover" }} title={label} />
-                ))}
-              </div>
-            </>
-          ) : (
+          <div className="mb-5">
+            <p className={`text-sm font-medium ${tp} mb-2`}>Fondo</p>
+            <div className="flex gap-1.5 mb-3">
+              {(["image", "color"] as const).map(t => (
+                <button key={t} onClick={() => upCfg({ bgType: t })}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-medium cursor-pointer border border-white/20 ${cfg.bgType === t ? "text-white" : ts}`}
+                  style={cfg.bgType === t ? { backgroundColor: ha(acc, 0.5) } : {}}>
+                  {t === "image" ? "🖼 Imagen" : "🎨 Color sólido"}
+                </button>
+              ))}
+            </div>
+            {cfg.bgType === "image" ? (
+              <>
+                <div className="flex gap-2 mb-2">
+                  <input value={bgInput} onChange={e => setBgInput(e.target.value)}
+                    className={`flex-1 px-3 py-1.5 rounded-xl text-xs ${gc} ${tp} outline-none`} style={gs} placeholder="URL..." />
+                  <button onClick={() => upCfg({ bgImage: bgInput })}
+                    className="px-3 py-1.5 rounded-xl text-xs text-white font-medium cursor-pointer" style={{ backgroundColor: acc }}>Aplicar</button>
+                </div>
+                <div className="flex items-center gap-2 mb-2">
+                  <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium cursor-pointer border border-white/20 ${ts} hover:text-white hover:bg-white/10 transition-all`}>
+                    <Upload size={12} /> Subir fondo
+                    <input type="file" accept="image/*" onChange={handleBackgroundUpload} className="hidden" />
+                  </label>
+                </div>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {customBackgrounds.map(bg => (
+                    <button key={bg.id}
+                      onClick={() => { setBgInput(bg.dataUrl); upCfg({ bgImage: bg.dataUrl }); }}
+                      className="h-14 rounded-xl overflow-hidden cursor-pointer transition-all hover:ring-2 hover:ring-white relative group"
+                      style={{ backgroundImage: `url(${bg.dataUrl})`, backgroundSize: "cover" }} title={bg.label}>
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center">
+                        <button onClick={e => { e.stopPropagation(); setCustomBackgrounds(s => s.filter(x => x.id !== bg.id)); }}
+                          className="opacity-0 group-hover:opacity-100 text-white bg-red-500/80 rounded-full p-1"><Trash2 size={10} /></button>
+                      </div>
+                    </button>
+                  ))}
+                  {[
+                    ["https://images.unsplash.com/photo-1464802686167-b939a6910659", "Galaxia"],
+                    ["https://images.unsplash.com/photo-1419242902214-272b3f66ee7a", "Nebulosa"],
+                    ["https://images.unsplash.com/photo-1534796636912-3b95b3ab5986", "Espacio"],
+                    ["https://images.unsplash.com/photo-1506905925346-21bda4d32df4", "Montañas"],
+                    ["https://images.unsplash.com/photo-1519681393784-d120267933ba", "Noche"],
+                    ["https://images.unsplash.com/photo-1520034475321-cbe63696469a", "Aurora"],
+                  ].map(([base, label]) => (
+                    <button key={base}
+                      onClick={() => { const u = `${base}?w=1920&h=1080&fit=crop&auto=format`; setBgInput(u); upCfg({ bgImage: u }); }}
+                      className="h-14 rounded-xl overflow-hidden cursor-pointer transition-all hover:ring-2 hover:ring-white"
+                      style={{ backgroundImage: `url(${base}?w=400&h=200&fit=crop&auto=format)`, backgroundSize: "cover" }} title={label} />
+                  ))}
+                </div>
+              </>
+            ) : (
             <div className="flex items-center gap-2 flex-wrap">
               {["#0d0b1e", "#1a0533", "#0a1628", "#0f172a", "#1a1a1a", "#fafafa", "#f0f4ff"].map(c => (
                 <button key={c} onClick={() => upCfg({ bgColor: c })}

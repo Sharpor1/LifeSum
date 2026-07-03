@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
-import { AnimatePresence, motion } from "motion/react";
-import type { Screen, AppCfg, Project, Activity, Logro } from "./types";
-import { ha, todayIdx, getWeekDates, isActivityVisibleInWeek } from "./utils";
+import { useState, useEffect, useRef } from "react";
+import { AnimatePresence } from "motion/react";
+import type { Screen, AppCfg, Project, Activity, Logro, CustomBg } from "./types";
+import { ha, isActivityVisibleInWeek } from "./utils";
 import { TIPS, INIT_PROJECTS, DEFAULT_BG } from "./constants";
+import * as api from "./api";
 import Sidebar from "./components/Sidebar";
 import Dashboard from "./components/Dashboard";
 import Calendar from "./components/Calendar";
@@ -11,26 +12,83 @@ import Modals from "./components/Modals";
 import { CelebrationOverlay, LogroToast, ActivityDetailOverlay } from "./components/Overlays";
 import StickerPanel from "./components/StickerPanel";
 
-export default function App() {
-  const [screen, setScreen] = useState<Screen>("dashboard");
-  const [cfg, setCfg] = useState<AppCfg>({
+function loadCfg(): AppCfg {
+  try {
+    const raw = localStorage.getItem("lifesum_cfg");
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return {
     username: "Valy", isDark: true, bgType: "image",
     bgImage: DEFAULT_BG, bgColor: "#1a0533", accentColor: "#a855f7",
     cardColor: "#ffffff", cardAlpha: 0.09, notifications: true,
     printBg: "white", fontSize: 16,
-  });
-  const [projects, setProjects] = useState<Project[]>(INIT_PROJECTS);
-  const [stickerList, setStickerList] = useState<{ id: string; stickerId: string; x: number; y: number }[]>([]);
-  const [customStickers, setCustomStickers] = useState<{ id: string; dataUrl: string; label: string }[]>([]);
+  };
+}
+
+function loadStickers(): { id: string; stickerId: string; x: number; y: number }[] {
+  try {
+    const raw = localStorage.getItem("lifesum_stickers");
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return [];
+}
+
+function loadCustomStickers(): { id: string; dataUrl: string; label: string }[] {
+  try {
+    const raw = localStorage.getItem("lifesum_custom_stickers");
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return [];
+}
+
+function loadCustomBackgrounds(): CustomBg[] {
+  try {
+    const raw = localStorage.getItem("lifesum_custom_backgrounds");
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return [];
+}
+
+function loadActivityDone(): Record<string, boolean> {
+  try {
+    const raw = localStorage.getItem("lifesum_activity_done");
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return {};
+}
+
+function loadCompletionLog(): Record<string, number> {
+  try {
+    const raw = localStorage.getItem("lifesum_completion_log");
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return {};
+}
+
+function loadCompletedDays(): string[] {
+  try {
+    const raw = localStorage.getItem("lifesum_completed_days");
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return [
+    new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10),
+    new Date(Date.now() - 1 * 86400000).toISOString().slice(0, 10),
+  ];
+}
+
+export default function App() {
+  const [screen, setScreen] = useState<Screen>("dashboard");
+  const [cfg, setCfg] = useState<AppCfg>(loadCfg);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [stickerList, setStickerList] = useState(loadStickers);
+  const [customStickers, setCustomStickers] = useState(loadCustomStickers);
+  const [customBackgrounds, setCustomBackgrounds] = useState(loadCustomBackgrounds);
   const [stickerPanelOpen, setStickerPanelOpen] = useState(false);
   const [weekOff, setWeekOff] = useState(0);
   const [calFilter, setCalFilter] = useState<string | null>(null);
-  const [activityDone, setActivityDone] = useState<Record<string, boolean>>({});
-  const [completionLog, setCompletionLog] = useState<Record<string, number>>({});
-  const [completedDays, setCompletedDays] = useState<string[]>([
-    new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10),
-    new Date(Date.now() - 1 * 86400000).toISOString().slice(0, 10),
-  ]);
+  const [activityDone, setActivityDone] = useState(loadActivityDone);
+  const [completionLog, setCompletionLog] = useState(loadCompletionLog);
+  const [completedDays, setCompletedDays] = useState(loadCompletedDays);
   const [detailAct, setDetailAct] = useState<Activity | null>(null);
   const [celebrateAct, setCelebrateAct] = useState<{ title: string; emoji: string; color: string } | null>(null);
   const [celebrateLogro, setCelebrateLogro] = useState<string | null>(null);
@@ -40,10 +98,67 @@ export default function App() {
   const [tipIdx, setTipIdx] = useState(Math.floor(Math.random() * TIPS.length));
   const [dragStickerId, setDragStickerId] = useState<string | null>(null);
 
+  const initialized = useRef(false);
+  const lastProjectsJson = useRef("");
+
   useEffect(() => {
-    const tips = setInterval(() => setTipIdx(i => (i + 1) % TIPS.length), 8000);
+    api.fetchProjects()
+      .then((data) => {
+        if (data.length > 0) {
+          setProjects(data);
+          lastProjectsJson.current = JSON.stringify(data);
+        } else {
+          setProjects(INIT_PROJECTS);
+          lastProjectsJson.current = JSON.stringify(INIT_PROJECTS);
+        }
+        initialized.current = true;
+      })
+      .catch(() => {
+        try {
+          const cached = localStorage.getItem("lifesum_projects");
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            setProjects(parsed);
+            lastProjectsJson.current = cached;
+          } else {
+            setProjects(INIT_PROJECTS);
+            lastProjectsJson.current = JSON.stringify(INIT_PROJECTS);
+          }
+        } catch {
+          setProjects(INIT_PROJECTS);
+          lastProjectsJson.current = JSON.stringify(INIT_PROJECTS);
+        }
+        initialized.current = true;
+      });
+  }, []);
+
+  useEffect(() => {
+    const tips = setInterval(() => setTipIdx((i) => (i + 1) % TIPS.length), 8000);
     return () => clearInterval(tips);
   }, []);
+
+  useEffect(() => { localStorage.setItem("lifesum_cfg", JSON.stringify(cfg)); }, [cfg]);
+  useEffect(() => { localStorage.setItem("lifesum_stickers", JSON.stringify(stickerList)); }, [stickerList]);
+  useEffect(() => { localStorage.setItem("lifesum_custom_stickers", JSON.stringify(customStickers)); }, [customStickers]);
+  useEffect(() => { localStorage.setItem("lifesum_custom_backgrounds", JSON.stringify(customBackgrounds)); }, [customBackgrounds]);
+  useEffect(() => { localStorage.setItem("lifesum_activity_done", JSON.stringify(activityDone)); }, [activityDone]);
+  useEffect(() => { localStorage.setItem("lifesum_completion_log", JSON.stringify(completionLog)); }, [completionLog]);
+  useEffect(() => { localStorage.setItem("lifesum_completed_days", JSON.stringify(completedDays)); }, [completedDays]);
+
+  useEffect(() => {
+    if (!initialized.current) return;
+    const json = JSON.stringify(projects);
+    if (json === lastProjectsJson.current) return;
+
+    localStorage.setItem("lifesum_projects", json);
+
+    const timer = setTimeout(() => {
+      lastProjectsJson.current = json;
+      api.syncAllProjects(projects).catch(() => {});
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [projects]);
 
   const dark = cfg.isDark;
   const acc = cfg.accentColor;
@@ -53,13 +168,13 @@ export default function App() {
   const ts = dark ? "text-white/55" : "text-gray-500";
   const sb = dark ? "bg-black/45 backdrop-blur-xl" : "bg-white/65 backdrop-blur-xl";
   const printBgColor = cfg.printBg === "white" ? "#ffffff" : cfg.bgColor;
-  const allActs = projects.flatMap(p => p.activities);
-  const visActs = (calFilter ? projects.filter(p => p.id === calFilter) : projects)
-    .flatMap(p => p.activities)
-    .filter(a => isActivityVisibleInWeek(a, weekOff));
-  const trayItems = allActs.filter(a => a.day === undefined || a.regularity === "regular");
+  const allActs = projects.flatMap((p) => p.activities);
+  const visActs = (calFilter ? projects.filter((p) => p.id === calFilter) : projects)
+    .flatMap((p) => p.activities)
+    .filter((a) => isActivityVisibleInWeek(a, weekOff));
+  const trayItems = allActs.filter((a) => a.day === undefined || a.regularity === "regular");
 
-  function upCfg(patch: Partial<AppCfg>) { setCfg(s => ({ ...s, ...patch })); }
+  function upCfg(patch: Partial<AppCfg>) { setCfg((s) => ({ ...s, ...patch })); }
 
   function openModal(k: "addActivity" | "editActivity" | "addProject" | null, preset: Record<string, unknown> = {}) {
     setEditActTarget(null);
@@ -89,9 +204,9 @@ export default function App() {
   }
 
   function updateLogroCounter(projId: string, actId: string, logroId: string, delta: number) {
-    setProjects(ps => ps.map(p => p.id !== projId ? p : {
-      ...p, activities: p.activities.map(a => a.id !== actId ? a : {
-        ...a, logros: a.logros.map(l => {
+    setProjects((ps) => ps.map((p) => p.id !== projId ? p : {
+      ...p, activities: p.activities.map((a) => a.id !== actId ? a : {
+        ...a, logros: a.logros.map((l) => {
           if (l.id !== logroId || l.target === undefined) return l;
           const newCur = Math.max(0, Math.min(l.target, (l.current ?? 0) + delta));
           const justCompleted = newCur >= l.target && (l.current ?? 0) < l.target;
@@ -106,9 +221,9 @@ export default function App() {
   }
 
   function toggleActivityLogro(projId: string, actId: string, logroId: string) {
-    setProjects(ps => ps.map(p => p.id !== projId ? p : {
-      ...p, activities: p.activities.map(a => a.id !== actId ? a : {
-        ...a, logros: a.logros.map(l => {
+    setProjects((ps) => ps.map((p) => p.id !== projId ? p : {
+      ...p, activities: p.activities.map((a) => a.id !== actId ? a : {
+        ...a, logros: a.logros.map((l) => {
           if (l.id !== logroId) return l;
           if (!l.completed) {
             setCelebrateLogro(l.title);
@@ -121,8 +236,8 @@ export default function App() {
   }
 
   function toggleProjectLogro(projId: string, logroId: string) {
-    setProjects(ps => ps.map(p => p.id === projId ? {
-      ...p, logros: p.logros.map(l => l.id === logroId ? { ...l, completed: !l.completed } : l)
+    setProjects((ps) => ps.map((p) => p.id === projId ? {
+      ...p, logros: p.logros.map((l) => l.id === logroId ? { ...l, completed: !l.completed } : l)
     } : p));
   }
 
@@ -130,9 +245,22 @@ export default function App() {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = ev => {
+    reader.onload = (ev) => {
       const dataUrl = ev.target?.result as string;
-      setCustomStickers(s => [...s, { id: Math.random().toString(36).slice(2, 9), dataUrl, label: file.name.replace(/\.[^/.]+$/, "") }]);
+      setCustomStickers((s) => [...s, { id: Math.random().toString(36).slice(2, 9), dataUrl, label: file.name.replace(/\.[^/.]+$/, "") }]);
+    };
+    reader.readAsDataURL(file);
+    if (e.target) e.target.value = "";
+  }
+
+  function handleBackgroundUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataUrl = ev.target?.result as string;
+      setCustomBackgrounds((s) => [...s, { id: Math.random().toString(36).slice(2, 9), dataUrl, label: file.name.replace(/\.[^/.]+$/, "") }]);
+      upCfg({ bgImage: dataUrl, bgType: "image" });
     };
     reader.readAsDataURL(file);
     if (e.target) e.target.value = "";
@@ -196,6 +324,9 @@ export default function App() {
               cfg={cfg} upCfg={upCfg} projects={projects}
               setProjects={setProjects} allActs={allActs}
               openModal={openModal} toggleProjectLogro={toggleProjectLogro}
+              customBackgrounds={customBackgrounds}
+              setCustomBackgrounds={setCustomBackgrounds}
+              handleBackgroundUpload={handleBackgroundUpload}
               dark={dark} acc={acc} tp={tp} ts={ts} gc={gc} gs={gs}
             />
           )}
