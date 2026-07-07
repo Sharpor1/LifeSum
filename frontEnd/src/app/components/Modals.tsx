@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "motion/react";
 import { Plus, X } from "lucide-react";
-import type { Activity, AppCfg, Logro, ModalKind, Priority, Project, Regularity } from "../types";
+import type { Activity, Logro, ModalKind, Priority, Project, Regularity } from "../types";
 import { ha, uid } from "../utils";
 import { DAYS, EMOJIS, HOURS, LOGRO_ICONS, NOTE_COLORS, PROJ_COLORS } from "../constants";
 

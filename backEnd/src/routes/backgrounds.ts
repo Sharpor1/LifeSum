@@ -8,8 +8,10 @@ import { getDb } from "../db.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UPLOAD_DIR = path.join(__dirname, "..", "..", "uploads", "backgrounds");
 
+// Asegurar que el directorio de uploads existe
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
+// Configuración de multer: almacenamiento en disco
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
   filename: (_req, file, cb) => {
@@ -20,7 +22,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { fileSize: 10 * 1024 * 1024 },    // Máx 10 MB
   fileFilter: (_req, file, cb) => {
     const allowed = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"];
     const ext = path.extname(file.originalname).toLowerCase();
@@ -31,11 +33,13 @@ const upload = multer({
 
 const router = Router();
 
+// GET /api/backgrounds — listar fondos personalizados
 router.get("/", (_req, res) => {
   const db = getDb();
   res.json(db.prepare("SELECT * FROM custom_backgrounds").all());
 });
 
+// POST /api/backgrounds/upload — subir un fondo (multipart)
 router.post("/upload", upload.single("background"), (req, res) => {
   if (!req.file) { res.status(400).json({ error: "No file uploaded" }); return; }
   const db = getDb();
@@ -45,6 +49,7 @@ router.post("/upload", upload.single("background"), (req, res) => {
   res.status(201).json({ id, filePath: relativePath, label: req.body.label ?? "Fondo personalizado" });
 });
 
+// DELETE /api/backgrounds/:id — eliminar un fondo (archivo + BD)
 router.delete("/:id", (req, res) => {
   const db = getDb();
   const bg = db.prepare("SELECT * FROM custom_backgrounds WHERE id = ?").get(req.params.id) as any;

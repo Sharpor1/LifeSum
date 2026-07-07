@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { Plus } from "lucide-react";
 import type { Activity, Logro } from "../types";
-import { ha } from "../utils";
 import { LOGRO_ICONS } from "../constants";
+import { ha } from "../utils";
 
 interface AddLogroFormProps {
   projId: string;
   allActs: Activity[];
-  acc: string; gc: string; gs: React.CSSProperties; tp: string; ts: string;
+  acc: string; tp: string; ts: string;
   onAdd: (l: Logro) => void;
 }
 

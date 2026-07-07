@@ -3,11 +3,13 @@ import { getDb } from "../db.js";
 
 const router = Router();
 
+// GET /api/custom-stickers — listar stickers personalizados
 router.get("/", (_req, res) => {
   const db = getDb();
   res.json(db.prepare("SELECT * FROM custom_stickers").all());
 });
 
+// POST /api/custom-stickers — crear un sticker personalizado (base64)
 router.post("/", (req, res) => {
   const db = getDb();
   const { id, dataUrl, label } = req.body;
@@ -16,6 +18,7 @@ router.post("/", (req, res) => {
   res.status(201).json({ ok: true });
 });
 
+// DELETE /api/custom-stickers/:id — eliminar un sticker personalizado
 router.delete("/:id", (req, res) => {
   const db = getDb();
   db.prepare("DELETE FROM custom_stickers WHERE id = ?").run(req.params.id);

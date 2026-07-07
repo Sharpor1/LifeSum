@@ -1,4 +1,4 @@
-export type Screen = "dashboard" | "calendar" | "settings";
+export type Screen = "dashboard" | "calendar" | "settings" | "docs";
 export type Regularity = "regular" | "semi" | "única";
 export type Priority = "alta" | "media" | "baja";
 export type ModalKind = "addActivity" | "editActivity" | "addProject" | null;

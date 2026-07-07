@@ -1,4 +1,4 @@
-import { Home, Calendar, Settings, Sun, Moon } from "lucide-react";
+import { Home, Calendar, Settings, Sun, Moon, FileText } from "lucide-react";
 import type { Screen, AppCfg } from "../types";
 import { ha } from "../utils";
 
@@ -25,6 +25,7 @@ export default function Sidebar({ screen, setScreen, cfg, upCfg, ts, sb }: Sideb
         { id: "dashboard" as Screen, icon: Home, label: "Inicio" },
         { id: "calendar" as Screen, icon: Calendar, label: "Cal" },
         { id: "settings" as Screen, icon: Settings, label: "Config" },
+        { id: "docs" as Screen, icon: FileText, label: "API" },
       ] as const).map(({ id, icon: Icon, label }) => (
         <button key={id} onClick={() => setScreen(id)}
           className={`w-14 h-14 flex flex-col items-center justify-center gap-0.5 rounded-2xl transition-all cursor-pointer ${screen === id ? "text-white" : `${ts} hover:text-white hover:bg-white/10`}`}

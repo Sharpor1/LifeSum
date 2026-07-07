@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { AnimatePresence } from "motion/react";
+import { Toaster, toast } from "sonner";
 import type { Screen, AppCfg, Project, Activity, Logro, CustomBg } from "./types";
 import { ha, isActivityVisibleInWeek } from "./utils";
 import { TIPS, INIT_PROJECTS, DEFAULT_BG } from "./constants";
 import * as api from "./api";
+import { ConnectionError } from "./api";
 import Sidebar from "./components/Sidebar";
 import Dashboard from "./components/Dashboard";
 import Calendar from "./components/Calendar";
@@ -11,6 +13,9 @@ import Settings from "./components/Settings";
 import Modals from "./components/Modals";
 import { CelebrationOverlay, LogroToast, ActivityDetailOverlay } from "./components/Overlays";
 import StickerPanel from "./components/StickerPanel";
+import Docs from "./components/Docs";
+
+//── Funciones de carga desde localStorage ──
 
 function loadCfg(): AppCfg {
   try {
@@ -100,6 +105,7 @@ export default function App() {
 
   const initialized = useRef(false);
   const lastProjectsJson = useRef("");
+  const needsInitSync = useRef(false);
 
   useEffect(() => {
     api.fetchProjects()
@@ -110,10 +116,16 @@ export default function App() {
         } else {
           setProjects(INIT_PROJECTS);
           lastProjectsJson.current = JSON.stringify(INIT_PROJECTS);
+          needsInitSync.current = true;
         }
         initialized.current = true;
       })
-      .catch(() => {
+      .catch((err) => {
+        if (err instanceof ConnectionError) {
+          toast.error(err.message, { duration: 6000 });
+        } else {
+          toast.error("Error al cargar datos del servidor. Usando datos locales.", { duration: 4000 });
+        }
         try {
           const cached = localStorage.getItem("lifesum_projects");
           if (cached) {
@@ -123,10 +135,12 @@ export default function App() {
           } else {
             setProjects(INIT_PROJECTS);
             lastProjectsJson.current = JSON.stringify(INIT_PROJECTS);
+            needsInitSync.current = true;
           }
         } catch {
           setProjects(INIT_PROJECTS);
           lastProjectsJson.current = JSON.stringify(INIT_PROJECTS);
+          needsInitSync.current = true;
         }
         initialized.current = true;
       });
@@ -148,17 +162,48 @@ export default function App() {
   useEffect(() => {
     if (!initialized.current) return;
     const json = JSON.stringify(projects);
-    if (json === lastProjectsJson.current) return;
+    if (json === lastProjectsJson.current && !needsInitSync.current) return;
 
     localStorage.setItem("lifesum_projects", json);
 
+    const shouldSync = needsInitSync.current;
+    needsInitSync.current = false;
+
     const timer = setTimeout(() => {
       lastProjectsJson.current = json;
-      api.syncAllProjects(projects).catch(() => {});
-    }, 500);
+      api.syncAllProjects(projects).catch((err) => {
+        if (err instanceof ConnectionError) {
+          toast.error(err.message, { duration: 4000 });
+        }
+      });
+    }, shouldSync ? 100 : 500);
 
     return () => clearTimeout(timer);
   }, [projects]);
+
+  useEffect(() => {
+    if (!initialized.current) return;
+    const timer = setTimeout(() => {
+      api.syncStickers(stickerList).catch((err) => {
+        if (err instanceof ConnectionError) {
+          toast.error(err.message, { duration: 4000 });
+        }
+      });
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [stickerList]);
+
+  useEffect(() => {
+    if (!initialized.current) return;
+    const timer = setTimeout(() => {
+      api.syncCustomStickers(customStickers).catch((err) => {
+        if (err instanceof ConnectionError) {
+          toast.error(err.message, { duration: 4000 });
+        }
+      });
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [customStickers]);
 
   const dark = cfg.isDark;
   const acc = cfg.accentColor;
@@ -268,6 +313,12 @@ export default function App() {
 
   return (
     <div className={`h-screen w-screen overflow-hidden flex ${dark ? "dark" : ""}`} style={{ fontSize: cfg.fontSize }}>
+      <Toaster
+        position="bottom-right"
+        toastOptions={{
+          style: { background: dark ? "#1f1f2e" : "#fff", color: dark ? "#fff" : "#111", border: `1px solid ${dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"}` },
+        }}
+      />
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
           .no-print { display: none !important; }
@@ -303,7 +354,6 @@ export default function App() {
               stickerList={stickerList} setStickerList={setStickerList}
               customStickers={customStickers} handleStickerUpload={handleStickerUpload}
               dragStickerId={dragStickerId} setDragStickerId={setDragStickerId}
-              fileInputRef={{ current: null }}
               dark={dark} acc={acc} tp={tp} ts={ts} gc={gc} gs={gs} sb={sb}
             />
           )}
@@ -329,6 +379,9 @@ export default function App() {
               handleBackgroundUpload={handleBackgroundUpload}
               dark={dark} acc={acc} tp={tp} ts={ts} gc={gc} gs={gs}
             />
+          )}
+          {screen === "docs" && (
+            <Docs dark={dark} acc={acc} tp={tp} ts={ts} gc={gc} gs={gs} />
           )}
         </AnimatePresence>
       </main>

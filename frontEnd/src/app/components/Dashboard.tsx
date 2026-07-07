@@ -4,10 +4,11 @@ import {
   Calendar, Plus, ExternalLink, ChevronRight, X, Clock,
   Check, Target, Minus, SkipForward, Timer
 } from "lucide-react";
-import type { Activity, AppCfg, Logro, Project, Priority, Screen } from "../types";
-import { ha, todayIdx, isActivityVisibleInWeek, formatMins, computeStreak } from "../utils";
+import type { Activity, AppCfg, Project, Screen } from "../types";
+import { ha, todayIdx, isActivityVisibleInWeek, formatMins, computeStreak, uid } from "../utils";
 import { HOURS, DAYS, DAYS_S, TIPS } from "../constants";
 import { STICKER_DEFS } from "../stickers";
+import * as api from "../api";
 
 interface DashboardProps {
   cfg: AppCfg;
@@ -88,6 +89,7 @@ export default function Dashboard({
     setActivityDone(d => ({ ...d, [actId]: true }));
     const today = new Date().toISOString().slice(0, 10);
     setCompletedDays(days => days.includes(today) ? days : [...days, today]);
+    api.createCompletion(uid(), actId).catch(() => {});
     const cProj = projects.find(p => p.activities.some(a => a.id === actId));
     const cAct = cProj?.activities.find(a => a.id === actId);
     if (cAct && cProj) {

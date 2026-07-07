@@ -2,11 +2,10 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   User, Palette, Bell, Trophy, Plus, Trash2, X, Check, Type,
-  ChevronDown, ChevronUp, Upload, Image
+  ChevronDown, ChevronUp, Upload,
 } from "lucide-react";
-import type { Activity, AppCfg, CustomBg, Logro, Project } from "../types";
+import type { Activity, AppCfg, CustomBg, Project } from "../types";
 import { ha } from "../utils";
-import { PROJ_COLORS, EMOJIS } from "../constants";
 import AddLogroForm from "./AddLogroForm";
 
 interface SettingsProps {
@@ -253,7 +252,7 @@ export default function Settings({
                               className={`${ts} hover:text-red-400 cursor-pointer`}><X size={11} /></button>
                           </div>
                         ))}
-                        <AddLogroForm projId={proj.id} allActs={allActs} acc={acc} gc={gc} gs={gs} tp={tp} ts={ts}
+                        <AddLogroForm projId={proj.id} allActs={allActs} acc={acc} tp={tp} ts={ts}
                           onAdd={(l) => setProjects(ps => ps.map(p => p.id === proj.id ? { ...p, logros: [...p.logros, l] } : p))} />
                       </div>
                     </motion.div>

@@ -1,14 +1,12 @@
 import express from "express";
 import cors from "cors";
-import path from "path";
-import { fileURLToPath } from "url";
 import projectsRouter from "./routes/projects.js";
 import stickersRouter from "./routes/stickers.js";
 import completionsRouter from "./routes/completions.js";
 import customStickersRouter from "./routes/customStickers.js";
 import backgroundsRouter from "./routes/backgrounds.js";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+import adminRouter from "./routes/admin.js";
+import apiDocsRouter from "./apiDocs.js";
 
 const app = express();
 const PORT = process.env.PORT ?? 3001;
@@ -21,18 +19,32 @@ app.use("/api/stickers", stickersRouter);
 app.use("/api/completions", completionsRouter);
 app.use("/api/custom-stickers", customStickersRouter);
 app.use("/api/backgrounds", backgroundsRouter);
+app.use("/api/admin", adminRouter);
+app.use("/api", apiDocsRouter);
 
-const uploadsPath = path.join(__dirname, "..", "uploads");
-app.use("/uploads", express.static(uploadsPath));
+app.use("/uploads", express.static("uploads"));
 
-const frontendDist = path.join(__dirname, "..", "..", "frontEnd", "dist");
-if (process.env.NODE_ENV === "production") {
-  app.use(express.static(frontendDist));
-  app.get("*", (_req, res) => {
-    res.sendFile(path.join(frontendDist, "index.html"));
-  });
-}
+app.get("/", (_req, res) => {
+  res.redirect("/api/admin");
+});
 
-app.listen(PORT, () => {
+app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error(`[LifeSum] ❌ Unhandled error:`, err);
+  res.status(500).json({ error: "Internal server error", message: err.message });
+});
+
+const server = app.listen(PORT, () => {
   console.log(`LifeSum backend running at http://localhost:${PORT}`);
+});
+
+server.on("error", (err: NodeJS.ErrnoException) => {
+  if (err.code === "EADDRINUSE") {
+    console.error(`[LifeSum] ❌ Port ${PORT} is already in use. Close the other process or change PORT.`);
+  } else {
+    console.error(`[LifeSum] ❌ Failed to start server:`, err.message);
+  }
+});
+
+process.on("unhandledRejection", (reason) => {
+  console.error(`[LifeSum] ❌ Unhandled rejection:`, reason);
 });

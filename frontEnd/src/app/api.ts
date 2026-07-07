@@ -1,7 +1,8 @@
 import type { Project } from "./types";
 
-/* ───────── Typed API Error ───────── */
+//── Errores tipados para la API ──
 
+// Error cuando el servidor responde con un código HTTP de error
 export class ApiResponseError extends Error {
   status: number;
   constructor(message: string, status: number) {
@@ -11,7 +12,15 @@ export class ApiResponseError extends Error {
   }
 }
 
-/* ───────── API Types ───────── */
+// Error cuando no se puede conectar con el servidor
+export class ConnectionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ConnectionError";
+  }
+}
+
+//── Tipos de respuesta de la API ──
 
 export interface Sticker {
   id: string;
@@ -42,24 +51,32 @@ export interface CustomSticker {
   label: string;
 }
 
-/* ───────── API Manager ───────── */
+//── ApiManager: wrapper de fetch con tipado genérico ──
 
 export class ApiManager {
   constructor(public baseUrl: string = "/api") {}
 
-  /* ── core request ── */
-
+  // Petición HTTP genérica con tipado
   private async request<T>(
     path: string,
     options: RequestInit = {},
   ): Promise<T> {
-    const res = await fetch(`${this.baseUrl}${path}`, {
-      headers:
-        options.body instanceof FormData
-          ? undefined
-          : { "Content-Type": "application/json", ...(options.headers as Record<string, string>) },
-      ...options,
-    });
+    let res: Response;
+    try {
+      res = await fetch(`${this.baseUrl}${path}`, {
+        headers:
+          options.body instanceof FormData
+            ? undefined  // El navegador pone el Content-Type automático con FormData
+            : { "Content-Type": "application/json", ...(options.headers as Record<string, string>) },
+        ...options,
+      });
+    } catch (err) {
+      // TypeError("Failed to fetch") = no hay conexión
+      const msg = err instanceof TypeError && err.message === "Failed to fetch"
+        ? `No se puede conectar con el servidor (${this.baseUrl}). Asegúrate de que el backend esté corriendo en http://localhost:3001`
+        : `Error de conexión: ${(err as Error).message}`;
+      throw new ConnectionError(msg);
+    }
     if (!res.ok) {
       const text = await res.text().catch(() => "");
       throw new ApiResponseError(text || `Request failed (${res.status})`, res.status);
@@ -68,7 +85,7 @@ export class ApiManager {
     return res.json();
   }
 
-  /* ── Projects ── */
+  //── Projects ──
 
   fetchProjects(): Promise<Project[]> {
     return this.request<Project[]>("/projects");
@@ -96,6 +113,7 @@ export class ApiManager {
     return this.request<void>(`/projects/${id}`, { method: "DELETE" });
   }
 
+  // Sincronización completa: crea, actualiza y elimina según la diferencia con el servidor
   async syncAllProjects(projects: Project[]): Promise<void> {
     const existing = await this.fetchProjects().catch(() => null);
     if (!existing) return;
@@ -114,7 +132,7 @@ export class ApiManager {
     ]);
   }
 
-  /* ── Stickers ── */
+  //── Stickers ──
 
   fetchStickers(): Promise<Sticker[]> {
     return this.request<Sticker[]>("/stickers");
@@ -127,7 +145,7 @@ export class ApiManager {
     });
   }
 
-  /* ── Completions ── */
+  //── Completions ──
 
   createCompletion(id: string, activityId: string, completedAt?: string): Promise<void> {
     return this.request<void>("/completions", {
@@ -144,7 +162,7 @@ export class ApiManager {
     return this.request<Streak>("/completions/streak");
   }
 
-  /* ── Backgrounds ── */
+  //── Backgrounds ──
 
   uploadBackground(file: File, label?: string): Promise<Background> {
     const formData = new FormData();
@@ -164,7 +182,7 @@ export class ApiManager {
     return this.request<void>(`/backgrounds/${id}`, { method: "DELETE" });
   }
 
-  /* ── Custom Stickers ── */
+  //── Custom Stickers ──
 
   async syncCustomStickers(stickers: CustomSticker[]): Promise<void> {
     const existing = await this.request<CustomSticker[]>("/custom-stickers").catch(() => null);
@@ -180,26 +198,24 @@ export class ApiManager {
   }
 }
 
-/* ───────── Singleton & re-exports (backward‑compatible) ───────── */
+//── Singleton: exportamos funciones sueltas con .bind() para evitar perder el this ──
 
 const api = new ApiManager();
 
-export const {
-  fetchProjects,
-  fetchProject,
-  createProject,
-  updateProject,
-  deleteProject,
-  syncAllProjects,
-  fetchStickers,
-  syncStickers,
-  createCompletion,
-  fetchCompletions,
-  fetchStreak,
-  uploadBackground,
-  fetchBackgrounds,
-  deleteBackground,
-  syncCustomStickers,
-} = api;
+export const fetchProjects = api.fetchProjects.bind(api);
+export const fetchProject = api.fetchProject.bind(api);
+export const createProject = api.createProject.bind(api);
+export const updateProject = api.updateProject.bind(api);
+export const deleteProject = api.deleteProject.bind(api);
+export const syncAllProjects = api.syncAllProjects.bind(api);
+export const fetchStickers = api.fetchStickers.bind(api);
+export const syncStickers = api.syncStickers.bind(api);
+export const createCompletion = api.createCompletion.bind(api);
+export const fetchCompletions = api.fetchCompletions.bind(api);
+export const fetchStreak = api.fetchStreak.bind(api);
+export const uploadBackground = api.uploadBackground.bind(api);
+export const fetchBackgrounds = api.fetchBackgrounds.bind(api);
+export const deleteBackground = api.deleteBackground.bind(api);
+export const syncCustomStickers = api.syncCustomStickers.bind(api);
 
 export default api;

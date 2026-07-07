@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "motion/react";
 import { X, Check, Pencil } from "lucide-react";
-import type { Activity, Project, Logro } from "../types";
+import type { Activity, Project } from "../types";
 import { ha } from "../utils";
 
 interface OverlaysProps {

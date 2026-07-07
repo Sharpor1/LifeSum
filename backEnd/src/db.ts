@@ -3,22 +3,25 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 
+// Ruta absoluta a la base de datos SQLite
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DB_PATH = path.join(__dirname, "..", "data", "lifesum.db");
 
 let db: Database.Database;
 
+// Obtiene (o crea) la instancia singleton de la base de datos
 export function getDb(): Database.Database {
   if (!db) {
     fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
     db = new Database(DB_PATH);
-    db.pragma("journal_mode = WAL");
-    db.pragma("foreign_keys = ON");
+    db.pragma("journal_mode = WAL");   // Mejor rendimiento en escritura
+    db.pragma("foreign_keys = ON");    // Integridad referencial
     initSchema();
   }
   return db;
 }
 
+// Crea todas las tablas e índices si no existen
 function initSchema() {
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
@@ -111,6 +114,7 @@ function initSchema() {
       label TEXT DEFAULT ''
     );
 
+    -- Índices para acelerar búsquedas frecuentes
     CREATE INDEX IF NOT EXISTS idx_project_links_project ON project_links(project_id);
     CREATE INDEX IF NOT EXISTS idx_activities_project ON activities(project_id);
     CREATE INDEX IF NOT EXISTS idx_logros_owner ON logros(owner_id);
