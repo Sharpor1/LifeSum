@@ -27,6 +27,11 @@ function initSchema() {
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       username TEXT NOT NULL,
+      email TEXT,
+      password_hash TEXT,
+      auth_type TEXT DEFAULT 'test' CHECK(auth_type IN ('google','demo','email','real','test')),
+      created_at TEXT DEFAULT (datetime('now')),
+      expires_at TEXT,
       is_dark INTEGER DEFAULT 1,
       bg_type TEXT DEFAULT 'image' CHECK(bg_type IN ('image','color')),
       bg_image TEXT DEFAULT '',
@@ -114,6 +119,14 @@ function initSchema() {
       label TEXT DEFAULT ''
     );
 
+    CREATE TABLE IF NOT EXISTS sessions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token TEXT NOT NULL UNIQUE,
+      created_at TEXT DEFAULT (datetime('now')),
+      expires_at TEXT NOT NULL
+    );
+
     -- Índices para acelerar búsquedas frecuentes
     CREATE INDEX IF NOT EXISTS idx_project_links_project ON project_links(project_id);
     CREATE INDEX IF NOT EXISTS idx_activities_project ON activities(project_id);
@@ -123,5 +136,7 @@ function initSchema() {
     CREATE INDEX IF NOT EXISTS idx_stickers_user ON stickers(user_id);
     CREATE INDEX IF NOT EXISTS idx_custom_stickers_user ON custom_stickers(user_id);
     CREATE INDEX IF NOT EXISTS idx_custom_backgrounds_user ON custom_backgrounds(user_id);
+    CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);
+    CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
   `);
 }

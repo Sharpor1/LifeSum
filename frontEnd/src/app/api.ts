@@ -62,12 +62,14 @@ export class ApiManager {
     options: RequestInit = {},
   ): Promise<T> {
     let res: Response;
+    const token = localStorage.getItem("lifesum_token");
+    const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
     try {
       res = await fetch(`${this.baseUrl}${path}`, {
         headers:
           options.body instanceof FormData
-            ? undefined  // El navegador pone el Content-Type automático con FormData
-            : { "Content-Type": "application/json", ...(options.headers as Record<string, string>) },
+            ? { ...authHeaders, ...(options.headers as Record<string, string>) }
+            : { "Content-Type": "application/json", ...authHeaders, ...(options.headers as Record<string, string>) },
         ...options,
       });
     } catch (err) {

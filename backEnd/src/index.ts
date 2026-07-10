@@ -6,6 +6,7 @@ import completionsRouter from "./routes/completions.js";
 import customStickersRouter from "./routes/customStickers.js";
 import backgroundsRouter from "./routes/backgrounds.js";
 import adminRouter from "./routes/admin.js";
+import authRouter, { authMiddleware } from "./routes/auth.js";
 import apiDocsRouter from "./apiDocs.js";
 
 const app = express();
@@ -14,11 +15,11 @@ const PORT = process.env.PORT ?? 3001;
 app.use(cors());
 app.use(express.json({ limit: "50mb" }));
 
-app.use("/api/projects", projectsRouter);
-app.use("/api/stickers", stickersRouter);
-app.use("/api/completions", completionsRouter);
-app.use("/api/custom-stickers", customStickersRouter);
-app.use("/api/backgrounds", backgroundsRouter);
+app.use("/api/projects", authMiddleware, projectsRouter);
+app.use("/api/stickers", authMiddleware, stickersRouter);
+app.use("/api/completions", authMiddleware, completionsRouter);
+app.use("/api/custom-stickers", authMiddleware, customStickersRouter);
+app.use("/api/backgrounds", authMiddleware, backgroundsRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api", apiDocsRouter);
 

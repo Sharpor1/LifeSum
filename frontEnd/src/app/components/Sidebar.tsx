@@ -1,6 +1,7 @@
-import { Home, Calendar, Settings, Sun, Moon, FileText } from "lucide-react";
+import { Home, Calendar, Settings, Sun, Moon, FileText, LogOut } from "lucide-react";
 import type { Screen, AppCfg } from "../types";
 import { ha } from "../utils";
+import { useAuth } from "../auth/AuthContext";
 
 interface SidebarProps {
   screen: Screen;
@@ -12,6 +13,7 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ screen, setScreen, cfg, upCfg, ts, sb }: SidebarProps) {
+  const { user, logout } = useAuth();
   const dark = cfg.isDark;
   const acc = cfg.accentColor;
 
@@ -19,7 +21,7 @@ export default function Sidebar({ screen, setScreen, cfg, upCfg, ts, sb }: Sideb
     <nav className={`no-print relative z-20 w-[70px] flex flex-col items-center py-5 gap-1 ${sb} border-r border-white/10 flex-shrink-0`}>
       <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold mb-3 select-none"
         style={{ backgroundColor: acc }}>
-        {cfg.username.slice(0, 2).toUpperCase()}
+        {(user?.username ?? cfg.username).slice(0, 2).toUpperCase()}
       </div>
       {([
         { id: "dashboard" as Screen, icon: Home, label: "Inicio" },
@@ -37,6 +39,11 @@ export default function Sidebar({ screen, setScreen, cfg, upCfg, ts, sb }: Sideb
       <button onClick={() => upCfg({ isDark: !dark })}
         className={`w-9 h-9 rounded-full flex items-center justify-center ${ts} hover:text-white hover:bg-white/10 transition-all cursor-pointer`}>
         {dark ? <Sun size={16} /> : <Moon size={16} />}
+      </button>
+      <button onClick={logout}
+        className={`w-9 h-9 rounded-full flex items-center justify-center text-red-400/60 hover:text-red-400 hover:bg-white/10 transition-all cursor-pointer`}
+        title="Cerrar sesión">
+        <LogOut size={16} />
       </button>
     </nav>
   );

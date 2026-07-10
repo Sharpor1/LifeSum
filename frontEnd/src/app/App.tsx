@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { AnimatePresence } from "motion/react";
 import { Toaster, toast } from "sonner";
+import { useAuth } from "./auth/AuthContext";
+import Login from "./auth/Login";
 import type { Screen, AppCfg, Project, Activity, Logro, CustomBg } from "./types";
 import { ha, isActivityVisibleInWeek } from "./utils";
 import { TIPS, INIT_PROJECTS, DEFAULT_BG } from "./constants";
@@ -82,6 +84,7 @@ function loadCompletedDays(): string[] {
 }
 
 export default function App() {
+  const { user, token, loading } = useAuth();
   const [screen, setScreen] = useState<Screen>("dashboard");
   const [cfg, setCfg] = useState<AppCfg>(loadCfg);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -310,6 +313,14 @@ export default function App() {
     reader.readAsDataURL(file);
     if (e.target) e.target.value = "";
   }
+
+  if (loading) return (
+    <div className="h-screen w-screen flex items-center justify-center" style={{ background: "#0d0b1e" }}>
+      <div className="text-white/40 text-lg animate-pulse">Cargando...</div>
+    </div>
+  );
+
+  if (!user || !token) return <Login />;
 
   return (
     <div className={`h-screen w-screen overflow-hidden flex ${dark ? "dark" : ""}`} style={{ fontSize: cfg.fontSize }}>

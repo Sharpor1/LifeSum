@@ -58,9 +58,10 @@ function mapLogro(l: any) {
 }
 
 // GET /api/projects — lista todos los proyectos con sus relaciones
-router.get("/", (_req, res) => {
+router.get("/", (req, res) => {
   const db = getDb();
-  const projects = db.prepare("SELECT * FROM projects").all();
+  const userId = (req as any).userId;
+  const projects = db.prepare("SELECT * FROM projects WHERE user_id = ?").all(userId);
   const links = db.prepare("SELECT * FROM project_links").all();
   const activities = db.prepare("SELECT * FROM activities").all();
   const logros = db.prepare("SELECT * FROM logros").all();
@@ -92,11 +93,12 @@ router.get("/:id", (req, res) => {
 // POST /api/projects — crea un proyecto con actividades, logros y links (transaccional)
 router.post("/", (req, res) => {
   const db = getDb();
+  const userId = (req as any).userId;
   const p = req.body;
   if (!p.id || !p.name) { res.status(400).json({ error: "id and name are required" }); return; }
 
   const txn = db.transaction(() => {
-    db.prepare("INSERT INTO projects (id, name, color, emoji, description) VALUES (?, ?, ?, ?, ?)").run(p.id, p.name, p.color || "#a855f7", p.emoji || "📦", p.description || "");
+    db.prepare("INSERT INTO projects (id, user_id, name, color, emoji, description) VALUES (?, ?, ?, ?, ?, ?)").run(p.id, userId, p.name, p.color || "#a855f7", p.emoji || "📦", p.description || "");
 
     if (p.links?.length) {
       const ins = db.prepare("INSERT INTO project_links (id, project_id, label, url) VALUES (?, ?, ?, ?)");

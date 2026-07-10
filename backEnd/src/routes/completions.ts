@@ -3,33 +3,37 @@ import { getDb } from "../db.js";
 
 const router = Router();
 
-// GET /api/completions — listar todos los completados
-router.get("/", (_req, res) => {
+// GET /api/completions — listar completados del usuario
+router.get("/", (req, res) => {
   const db = getDb();
-  res.json(db.prepare("SELECT * FROM activity_completions").all());
+  const userId = (req as any).userId;
+  res.json(db.prepare("SELECT * FROM activity_completions WHERE user_id = ?").all(userId));
 });
 
 // POST /api/completions — registrar una actividad como completada
 router.post("/", (req, res) => {
   const db = getDb();
+  const userId = (req as any).userId;
   const { id, activityId, completedAt } = req.body;
   if (!id || !activityId) { res.status(400).json({ error: "id and activityId are required" }); return; }
   const date = completedAt ?? new Date().toISOString().slice(0, 10);
-  db.prepare("INSERT INTO activity_completions (id, activity_id, completed_at) VALUES (?, ?, ?)").run(id, activityId, date);
+  db.prepare("INSERT INTO activity_completions (id, user_id, activity_id, completed_at) VALUES (?, ?, ?, ?)").run(id, userId, activityId, date);
   res.status(201).json({ ok: true });
 });
 
 // GET /api/completions/today — completados del día de hoy
-router.get("/today", (_req, res) => {
+router.get("/today", (req, res) => {
   const db = getDb();
+  const userId = (req as any).userId;
   const today = new Date().toISOString().slice(0, 10);
-  res.json(db.prepare("SELECT * FROM activity_completions WHERE completed_at = ?").all(today));
+  res.json(db.prepare("SELECT * FROM activity_completions WHERE user_id = ? AND completed_at = ?").all(userId, today));
 });
 
 // GET /api/completions/streak — calcular racha de días consecutivos con completados
-router.get("/streak", (_req, res) => {
+router.get("/streak", (req, res) => {
   const db = getDb();
-  const rows = db.prepare("SELECT DISTINCT completed_at FROM activity_completions ORDER BY completed_at DESC").all() as { completed_at: string }[];
+  const userId = (req as any).userId;
+  const rows = db.prepare("SELECT DISTINCT completed_at FROM activity_completions WHERE user_id = ? ORDER BY completed_at DESC").all(userId) as { completed_at: string }[];
   let streak = 0;
   const d = new Date();
   const today = d.toISOString().slice(0, 10);
@@ -45,7 +49,8 @@ router.get("/streak", (_req, res) => {
 // DELETE /api/completions/:id — eliminar un registro de completado
 router.delete("/:id", (req, res) => {
   const db = getDb();
-  db.prepare("DELETE FROM activity_completions WHERE id = ?").run(req.params.id);
+  const userId = (req as any).userId;
+  db.prepare("DELETE FROM activity_completions WHERE id = ? AND user_id = ?").run(req.params.id, userId);
   res.json({ ok: true });
 });
 

@@ -33,31 +33,34 @@ const upload = multer({
 
 const router = Router();
 
-// GET /api/backgrounds — listar fondos personalizados
-router.get("/", (_req, res) => {
+// GET /api/backgrounds — listar fondos personalizados del usuario
+router.get("/", (req, res) => {
   const db = getDb();
-  res.json(db.prepare("SELECT * FROM custom_backgrounds").all());
+  const userId = (req as any).userId;
+  res.json(db.prepare("SELECT id, file_path as filePath, label FROM custom_backgrounds WHERE user_id = ?").all(userId));
 });
 
 // POST /api/backgrounds/upload — subir un fondo (multipart)
 router.post("/upload", upload.single("background"), (req, res) => {
   if (!req.file) { res.status(400).json({ error: "No file uploaded" }); return; }
   const db = getDb();
+  const userId = (req as any).userId;
   const id = Math.random().toString(36).slice(2, 9);
   const relativePath = `/uploads/backgrounds/${req.file.filename}`;
-  db.prepare("INSERT INTO custom_backgrounds (id, file_path, label) VALUES (?, ?, ?)").run(id, relativePath, req.body.label ?? "Fondo personalizado");
+  db.prepare("INSERT INTO custom_backgrounds (id, user_id, file_path, label) VALUES (?, ?, ?, ?)").run(id, userId, relativePath, req.body.label ?? "Fondo personalizado");
   res.status(201).json({ id, filePath: relativePath, label: req.body.label ?? "Fondo personalizado" });
 });
 
 // DELETE /api/backgrounds/:id — eliminar un fondo (archivo + BD)
 router.delete("/:id", (req, res) => {
   const db = getDb();
-  const bg = db.prepare("SELECT * FROM custom_backgrounds WHERE id = ?").get(req.params.id) as any;
+  const userId = (req as any).userId;
+  const bg = db.prepare("SELECT * FROM custom_backgrounds WHERE id = ? AND user_id = ?").get(req.params.id, userId) as any;
   if (bg) {
     const fullPath = path.join(__dirname, "..", "..", bg.file_path);
     try { fs.unlinkSync(fullPath); } catch {}
   }
-  db.prepare("DELETE FROM custom_backgrounds WHERE id = ?").run(req.params.id);
+  db.prepare("DELETE FROM custom_backgrounds WHERE id = ? AND user_id = ?").run(req.params.id, userId);
   res.json({ ok: true });
 });
 
