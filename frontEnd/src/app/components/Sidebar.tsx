@@ -10,18 +10,25 @@ interface SidebarProps {
   upCfg: (patch: Partial<AppCfg>) => void;
   ts: string;
   sb: string;
+  isDemo: boolean;
 }
 
-export default function Sidebar({ screen, setScreen, cfg, upCfg, ts, sb }: SidebarProps) {
+export default function Sidebar({ screen, setScreen, cfg, upCfg, ts, sb, isDemo }: SidebarProps) {
   const { user, logout } = useAuth();
   const dark = cfg.isDark;
   const acc = cfg.accentColor;
 
   return (
     <nav className={`no-print relative z-20 w-[70px] flex flex-col items-center py-5 gap-1 ${sb} border-r border-white/10 flex-shrink-0`}>
-      <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold mb-3 select-none"
-        style={{ backgroundColor: acc }}>
+      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold mb-3 select-none relative ${isDemo ? "ring-2 ring-amber-400/60" : ""}`}
+        style={{ backgroundColor: isDemo ? "#d97706" : acc }}>
         {(user?.username ?? cfg.username).slice(0, 2).toUpperCase()}
+        {isDemo && (
+          <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-amber-400 rounded-full border-2 flex items-center justify-center text-[7px]"
+            style={{ borderColor: dark ? "#1a1a2e" : "#fff" }}>
+            D
+          </span>
+        )}
       </div>
       {([
         { id: "dashboard" as Screen, icon: Home, label: "Inicio" },

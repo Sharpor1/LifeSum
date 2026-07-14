@@ -45,6 +45,16 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
   next();
 }
 
+// Bloquea operaciones de escritura (POST/PUT/DELETE) para usuarios demo
+// Debe ejecutarse DESPUÉS de authMiddleware
+export function demoBlockWrites(req: Request, res: Response, next: NextFunction) {
+  if ((req as any).authType === "demo" && ["POST", "PUT", "DELETE"].includes(req.method)) {
+    res.status(403).json({ error: "Las cuentas demo no pueden modificar datos. Crea una cuenta real para guardar cambios." });
+    return;
+  }
+  next();
+}
+
 router.post("/google", (_req: Request, res: Response) => {
   const db = getDb();
   const id = uuid();

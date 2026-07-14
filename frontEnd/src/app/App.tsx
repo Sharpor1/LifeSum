@@ -84,7 +84,8 @@ function loadCompletedDays(): string[] {
 }
 
 export default function App() {
-  const { user, token, loading } = useAuth();
+  const { user, token, loading, logout } = useAuth();
+  const isDemo = user?.authType === "demo";
   const [screen, setScreen] = useState<Screen>("dashboard");
   const [cfg, setCfg] = useState<AppCfg>(loadCfg);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -225,6 +226,7 @@ export default function App() {
   function upCfg(patch: Partial<AppCfg>) { setCfg((s) => ({ ...s, ...patch })); }
 
   function openModal(k: "addActivity" | "editActivity" | "addProject" | null, preset: Record<string, unknown> = {}) {
+    if (isDemo) { toast.info("Crea una cuenta real para poder editar datos.", { duration: 3000 }); return; }
     setEditActTarget(null);
     setMForm({
       title: "", description: "", hours: 1, startHour: 9, day: 0,
@@ -238,6 +240,7 @@ export default function App() {
   }
 
   function openEditModal(act: Activity) {
+    if (isDemo) { toast.info("Crea una cuenta real para poder editar datos.", { duration: 3000 }); return; }
     setEditActTarget(act);
     setMForm({
       title: act.title, description: act.description, hours: act.hours,
@@ -252,6 +255,7 @@ export default function App() {
   }
 
   function updateLogroCounter(projId: string, actId: string, logroId: string, delta: number) {
+    if (isDemo) { toast.info("Crea una cuenta real para interactuar con logros.", { duration: 3000 }); return; }
     setProjects((ps) => ps.map((p) => p.id !== projId ? p : {
       ...p, activities: p.activities.map((a) => a.id !== actId ? a : {
         ...a, logros: a.logros.map((l) => {
@@ -269,6 +273,7 @@ export default function App() {
   }
 
   function toggleActivityLogro(projId: string, actId: string, logroId: string) {
+    if (isDemo) { toast.info("Crea una cuenta real para interactuar con logros.", { duration: 3000 }); return; }
     setProjects((ps) => ps.map((p) => p.id !== projId ? p : {
       ...p, activities: p.activities.map((a) => a.id !== actId ? a : {
         ...a, logros: a.logros.map((l) => {
@@ -284,12 +289,14 @@ export default function App() {
   }
 
   function toggleProjectLogro(projId: string, logroId: string) {
+    if (isDemo) { toast.info("Crea una cuenta real para interactuar con logros.", { duration: 3000 }); return; }
     setProjects((ps) => ps.map((p) => p.id === projId ? {
       ...p, logros: p.logros.map((l) => l.id === logroId ? { ...l, completed: !l.completed } : l)
     } : p));
   }
 
   function handleStickerUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    if (isDemo) { toast.info("Crea una cuenta real para subir stickers.", { duration: 3000 }); return; }
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
@@ -302,6 +309,7 @@ export default function App() {
   }
 
   function handleBackgroundUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    if (isDemo) { toast.info("Crea una cuenta real para subir fondos.", { duration: 3000 }); return; }
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
@@ -339,6 +347,18 @@ export default function App() {
         }
       ` }} />
 
+      {isDemo && (
+        <div className="fixed top-0 left-[70px] right-0 z-50 no-print flex items-center justify-center gap-3 py-2 px-4 bg-gradient-to-r from-amber-600/90 via-orange-500/90 to-amber-600/90 backdrop-blur-sm text-white text-xs font-medium">
+          <span>MODO DEMO — Los datos no se guardan.</span>
+          <a href="/real-login" className="underline underline-offset-2 hover:text-white/80 transition-colors font-bold">
+            Crear cuenta real
+          </a>
+          <button onClick={logout} className="ml-2 bg-white/15 hover:bg-white/25 rounded-lg px-2 py-0.5 transition-colors cursor-pointer">
+            Salir
+          </button>
+        </div>
+      )}
+
       {cfg.bgType === "image" ? (
         <div className="fixed inset-0 z-0 print-bg-hidden"
           style={{ backgroundImage: `url(${cfg.bgImage})`, backgroundSize: "cover", backgroundPosition: "center" }} />
@@ -347,7 +367,7 @@ export default function App() {
       )}
       <div className={`fixed inset-0 z-0 print-bg-hidden ${dark ? "bg-black/50" : "bg-white/20"}`} />
 
-      <Sidebar screen={screen} setScreen={setScreen} cfg={cfg} upCfg={upCfg} ts={ts} sb={sb} />
+      <Sidebar screen={screen} setScreen={setScreen} cfg={cfg} upCfg={upCfg} ts={ts} sb={sb} isDemo={isDemo} />
 
       <main className="relative z-10 flex-1 overflow-hidden">
         <AnimatePresence mode="wait">
