@@ -36,17 +36,17 @@ interface DashboardProps {
   customStickers: { id: string; dataUrl: string; label: string }[];
   dragStickerId: string | null;
   setDragStickerId: (id: string | null) => void;
-  dark: boolean; acc: string; tp: string; ts: string; gc: string; gs: React.CSSProperties; sb: string;
+  dark: boolean; acc: string; tp: string; ts: string; gc: string; gs: React.CSSProperties;
 }
 
 export default function Dashboard({
   cfg, projects, setProjects, allActs, calFilter, setCalFilter, setScreen, openModal, openEditModal,
-  activityDone, setActivityDone, completionLog, setCompletionLog, completedDays, setCompletedDays,
-  setCelebrateAct, setCelebrateLogro, updateLogroCounter, toggleActivityLogro,
-  stickerList, setStickerList, customStickers,
-  dragStickerId, setDragStickerId,
-  dark, acc, tp, ts, gc, gs,
-}: DashboardProps) {
+activityDone, setActivityDone, completionLog, setCompletionLog, completedDays, setCompletedDays,
+    setCelebrateAct, setCelebrateLogro, updateLogroCounter, toggleActivityLogro,
+    stickerList, setStickerList, customStickers,
+    dragStickerId, setDragStickerId,
+    dark, acc, tp, ts, gc, gs,
+  }: DashboardProps) {
   const [tipOpen, setTipOpen] = useState(true);
   const [tipIdx, setTipIdx] = useState(Math.floor(Math.random() * TIPS.length));
   const [extendedMins, setExtendedMins] = useState(0);
@@ -90,12 +90,8 @@ export default function Dashboard({
     const today = new Date().toISOString().slice(0, 10);
     setCompletedDays(days => days.includes(today) ? days : [...days, today]);
     api.createCompletion(uid(), actId).catch(() => {});
-    const cProj = projects.find(p => p.activities.some(a => a.id === actId));
-    const cAct = cProj?.activities.find(a => a.id === actId);
-    if (cAct && cProj) {
-      setCelebrateAct({ title: cAct.title, emoji: cProj.emoji, color: cProj.color });
-      setTimeout(() => setCelebrateAct(null), 3500);
-    }
+    setCelebrateAct({ title: act.title, emoji: proj.emoji, color: proj.color });
+    setTimeout(() => setCelebrateAct(null), 3500);
 
     setProjects(ps => ps.map(p => {
       if (p.id !== proj.id) return p;

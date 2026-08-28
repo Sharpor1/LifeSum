@@ -25,7 +25,7 @@ export function runMigrations() {
     db.exec("ALTER TABLE users ADD COLUMN password_hash TEXT");
   }
   if (!userCols.has("auth_type")) {
-    db.exec("ALTER TABLE users ADD COLUMN auth_type TEXT DEFAULT 'test' CHECK(auth_type IN ('google','demo','email','real','test'))");
+    db.exec("ALTER TABLE users ADD COLUMN auth_type TEXT DEFAULT 'test' CHECK(auth_type IN ('real','test'))");
   }
   if (!userCols.has("expires_at")) {
     db.exec("ALTER TABLE users ADD COLUMN expires_at TEXT");
@@ -86,92 +86,7 @@ export function runMigrations() {
     upd.run(adminId);
   }
 
-  // 6. Ensure demo user exists with reference to admin data
-  let demoId: string | null = null;
-  const existingDemo = db.prepare("SELECT id FROM users WHERE auth_type = 'demo' LIMIT 1").get() as { id: string } | undefined;
-  if (existingDemo) {
-    demoId = existingDemo.id;
-  } else {
-    demoId = uuid();
-    db.prepare("INSERT INTO users (id, username, auth_type) VALUES (?, 'Demo', 'demo')").run(demoId);
-  }
-
-  // 7. Copy ALL admin data to demo user so demo sees everything
-  // First, delete any existing demo-owned data
-  db.prepare("DELETE FROM stickers WHERE user_id = ?").run(demoId);
-  db.prepare("DELETE FROM custom_stickers WHERE user_id = ?").run(demoId);
-  db.prepare("DELETE FROM custom_backgrounds WHERE user_id = ?").run(demoId);
-  db.prepare("DELETE FROM activity_completions WHERE user_id = ?").run(demoId);
-  db.prepare("DELETE FROM projects WHERE user_id = ?").run(demoId);
-
-  // Copy projects from admin to demo
-  const adminProjects = db.prepare("SELECT * FROM projects WHERE user_id = ?").all() as any[];
-  for (const p of adminProjects) {
-    const newProjId = uuid();
-    db.prepare("INSERT INTO projects (id, user_id, name, color, emoji, description) VALUES (?, ?, ?, ?, ?, ?)")
-      .run(newProjId, demoId, p.name, p.color, p.emoji, p.description || "");
-
-    // Copy activities
-    const acts = db.prepare("SELECT * FROM activities WHERE project_id = ?").all() as any[];
-    for (const a of acts) {
-      const newActId = uuid();
-      db.prepare(`
-        INSERT INTO activities (id, project_id, title, description, hours, day, start_hour, regularity, priority, note_color, sched_week, semi_weeks, semi_target, semi_completions)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(newActId, newProjId, a.title, a.description || "", a.hours, a.day, a.start_hour, a.regularity, a.priority, a.note_color || "#fef08a", a.sched_week || 0, a.semi_weeks, a.semi_target, a.semi_completions || 0);
-
-      // Copy logros for this activity
-      const logros = db.prepare("SELECT * FROM logros WHERE owner_type = 'activity' AND owner_id = ?").all() as any[];
-      for (const l of logros) {
-        db.prepare("INSERT INTO logros (id, owner_type, owner_id, title, icon, completed, current, target, trigger_activity_id, trigger_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
-          .run(uuid(), 'activity', newActId, l.title, l.icon || '🏆', l.completed || 0, l.current, l.target, l.trigger_activity_id, l.trigger_count);
-      }
-    }
-
-    // Copy project links
-    const links = db.prepare("SELECT * FROM project_links WHERE project_id = ?").all() as any[];
-    for (const l of links) {
-      db.prepare("INSERT INTO project_links (id, project_id, label, url) VALUES (?, ?, ?, ?)")
-        .run(uuid(), newProjId, l.label, l.url);
-    }
-
-    // Copy project-level logros
-    const projLogros = db.prepare("SELECT * FROM logros WHERE owner_type = 'project' AND owner_id = ?").all() as any[];
-    for (const l of projLogros) {
-      db.prepare("INSERT INTO logros (id, owner_type, owner_id, title, icon, completed, current, target, trigger_activity_id, trigger_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
-        .run(uuid(), 'project', newProjId, l.title, l.icon || '🏆', l.completed || 0, l.current, l.target, l.trigger_activity_id, l.trigger_count);
-    }
-  }
-
-  // Copy stickers
-  const adminStickers = db.prepare("SELECT * FROM stickers WHERE user_id = ?").all() as any[];
-  for (const s of adminStickers) {
-    db.prepare("INSERT INTO stickers (id, user_id, sticker_id, x, y) VALUES (?, ?, ?, ?, ?)")
-      .run(uuid(), demoId, s.sticker_id, s.x, s.y);
-  }
-
-  // Copy custom stickers
-  const adminCStickers = db.prepare("SELECT * FROM custom_stickers WHERE user_id = ?").all() as any[];
-  for (const s of adminCStickers) {
-    db.prepare("INSERT INTO custom_stickers (id, user_id, data_url, label) VALUES (?, ?, ?, ?)")
-      .run(uuid(), demoId, s.data_url, s.label);
-  }
-
-  // Copy custom backgrounds
-  const adminBgs = db.prepare("SELECT * FROM custom_backgrounds WHERE user_id = ?").all() as any[];
-  for (const b of adminBgs) {
-    db.prepare("INSERT INTO custom_backgrounds (id, user_id, file_path, label) VALUES (?, ?, ?, ?)")
-      .run(uuid(), demoId, b.file_path, b.label);
-  }
-
-  // Copy completions
-  const adminComps = db.prepare("SELECT * FROM activity_completions WHERE user_id = ?").all() as any[];
-  for (const c of adminComps) {
-    db.prepare("INSERT INTO activity_completions (id, user_id, activity_id, completed_at) VALUES (?, ?, ?, ?)")
-      .run(uuid(), demoId, c.activity_id, c.completed_at);
-  }
-
-  return { adminId, demoId };
+  return { adminId, demoId: null };
 }
 
 export function getAdminUserId(): string {

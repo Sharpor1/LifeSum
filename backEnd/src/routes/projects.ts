@@ -70,10 +70,11 @@ router.get("/", (req, res) => {
   res.json(result);
 });
 
-// GET /api/projects/:id — obtiene un proyecto específico
+// GET /api/projects/:id — obtiene un proyecto específico del usuario
 router.get("/:id", (req, res) => {
   const db = getDb();
-  const project = db.prepare("SELECT * FROM projects WHERE id = ?").get(req.params.id);
+  const userId = (req as any).userId;
+  const project = db.prepare("SELECT * FROM projects WHERE id = ? AND user_id = ?").get(req.params.id, userId);
   if (!project) { res.status(404).json({ error: "Project not found" }); return; }
 
   const links = db.prepare("SELECT * FROM project_links WHERE project_id = ?").all(req.params.id);
@@ -148,7 +149,8 @@ router.post("/", (req, res) => {
 // PUT /api/projects/:id — actualiza un proyecto completo (borra y reinserta relaciones)
 router.put("/:id", (req, res) => {
   const db = getDb();
-  const existing = db.prepare("SELECT id FROM projects WHERE id = ?").get(req.params.id);
+  const userId = (req as any).userId;
+  const existing = db.prepare("SELECT id FROM projects WHERE id = ? AND user_id = ?").get(req.params.id, userId);
   if (!existing) { res.status(404).json({ error: "Project not found" }); return; }
 
   const p = req.body;
@@ -215,7 +217,8 @@ router.put("/:id", (req, res) => {
 // DELETE /api/projects/:id — elimina un proyecto (CASCADE se encarga de relaciones)
 router.delete("/:id", (req, res) => {
   const db = getDb();
-  const existing = db.prepare("SELECT id FROM projects WHERE id = ?").get(req.params.id);
+  const userId = (req as any).userId;
+  const existing = db.prepare("SELECT id FROM projects WHERE id = ? AND user_id = ?").get(req.params.id, userId);
   if (!existing) { res.status(404).json({ error: "Project not found" }); return; }
 
   db.prepare("DELETE FROM projects WHERE id = ?").run(req.params.id);

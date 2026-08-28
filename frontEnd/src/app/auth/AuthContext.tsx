@@ -69,6 +69,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  // Heartbeat: mientras la página está abierta renovamos la expiración de la
+  // cuenta temporal. Si el cliente cierra/abandona la página, el backend la
+  // borra pasados los GUEST_TIMEOUT_SECONDS de inactividad.
+  useEffect(() => {
+    if (!token) return;
+    const beat = () => {
+      fetch("/api/auth/heartbeat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      }).catch(() => {});
+    };
+    beat();
+    const id = setInterval(beat, 5000);
+    return () => clearInterval(id);
+  }, [token]);
+
   return (
     <AuthContext.Provider value={{ user, token, login, logout, loading }}>
       {children}

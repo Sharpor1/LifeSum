@@ -6,8 +6,9 @@ import completionsRouter from "./routes/completions.js";
 import customStickersRouter from "./routes/customStickers.js";
 import backgroundsRouter from "./routes/backgrounds.js";
 import adminRouter from "./routes/admin.js";
-import authRouter, { authMiddleware, demoBlockWrites } from "./routes/auth.js";
+import authRouter, { authMiddleware, cleanupExpiredUsers } from "./routes/auth.js";
 import apiDocsRouter from "./apiDocs.js";
+import { runMigrations } from "./migrate.js";
 
 const app = express();
 const PORT = process.env.PORT ?? 3001;
@@ -15,11 +16,15 @@ const PORT = process.env.PORT ?? 3001;
 app.use(cors());
 app.use(express.json({ limit: "50mb" }));
 
-app.use("/api/projects", authMiddleware, demoBlockWrites, projectsRouter);
-app.use("/api/stickers", authMiddleware, demoBlockWrites, stickersRouter);
-app.use("/api/completions", authMiddleware, demoBlockWrites, completionsRouter);
-app.use("/api/custom-stickers", authMiddleware, demoBlockWrites, customStickersRouter);
-app.use("/api/backgrounds", authMiddleware, demoBlockWrites, backgroundsRouter);
+// Aplicar migraciones del esquema al arrancar (crea columnas/tablas faltantes)
+runMigrations();
+
+app.use("/api/projects", authMiddleware, projectsRouter);
+app.use("/api/stickers", authMiddleware, stickersRouter);
+app.use("/api/completions", authMiddleware, completionsRouter);
+app.use("/api/custom-stickers", authMiddleware, customStickersRouter);
+app.use("/api/backgrounds", authMiddleware, backgroundsRouter);
+app.use("/api/auth", authRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api", apiDocsRouter);
 
@@ -37,6 +42,19 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 const server = app.listen(PORT, () => {
   console.log(`LifeSum backend running at http://localhost:${PORT}`);
 });
+
+// Limpia periódicamente las cuentas temporales inactivas (se borran a los
+// GUEST_TIMEOUT_SECONDS después de que el cliente abandone la página).
+const cleanupInterval = setInterval(() => {
+  try {
+    const removed = cleanupExpiredUsers();
+    if (removed > 0) console.log(`[LifeSum] Limpieza automática: ${removed} cuenta(s) temporal(es) eliminadas.`);
+  } catch (err) {
+    console.error("[LifeSum] Error en limpieza automática:", err);
+  }
+}, 5000);
+
+server.on("close", () => clearInterval(cleanupInterval));
 
 server.on("error", (err: NodeJS.ErrnoException) => {
   if (err.code === "EADDRINUSE") {

@@ -29,7 +29,7 @@ function initSchema() {
       username TEXT NOT NULL,
       email TEXT,
       password_hash TEXT,
-      auth_type TEXT DEFAULT 'test' CHECK(auth_type IN ('google','demo','email','real','test')),
+      auth_type TEXT DEFAULT 'test' CHECK(auth_type IN ('real','test')),
       created_at TEXT DEFAULT (datetime('now')),
       expires_at TEXT,
       is_dark INTEGER DEFAULT 1,
