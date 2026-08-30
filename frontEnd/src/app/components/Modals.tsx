@@ -165,7 +165,7 @@ export default function Modals({ modal, setModal, mForm, setMForm, editActTarget
                           <div className="w-4 h-4 rounded-full bg-white shadow" />
                         </button>
                       </div>
-                      {mForm.scheduleNow && (
+                      {Boolean(mForm.scheduleNow) && (
                         <div className="grid grid-cols-3 gap-2">
                           <div>
                             <label className="text-[10px] text-white/50 block mb-1">Día</label>

@@ -161,7 +161,6 @@ function renderPage(): string {
   <p class="subtitle">Backend de la aplicación LifeSum — Documentación de endpoints</p>
 
   <div class="nav-links">
-    <a href="/api/admin">⚙️ Admin</a>
     <a href="#endpoints">📡 Endpoints</a>
     <a href="#database">🗄️ Base de datos</a>
     <a href="#status">🔌 Estado</a>

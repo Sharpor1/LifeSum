@@ -9,6 +9,9 @@
     "build:front": "npm --prefix frontEnd run build",
     "build:back": "npm --prefix backEnd run build",
     "build:all": "npm run build:front && npm run build:back",
+    "typecheck:front": "npm --prefix frontEnd run typecheck",
+    "typecheck:back": "npm --prefix backEnd run typecheck",
+    "typecheck": "npm run typecheck:front && npm run typecheck:back",
     "start": "npm --prefix backEnd run start",
     "dev": "concurrently \"npm run dev:front\" \"npm run dev:back\""
   },

@@ -3,9 +3,7 @@ import { X, Check, Pencil } from "lucide-react";
 import type { Activity, Project } from "../types";
 import { ha } from "../utils";
 
-interface OverlaysProps {
-  celebrateAct: { title: string; emoji: string; color: string } | null;
-  celebrateLogro: string | null;
+interface ActivityDetailProps {
   detailAct: Activity | null;
   setDetailAct: (act: Activity | null) => void;
   projects: Project[];
@@ -59,7 +57,7 @@ export function LogroToast({ celebrateLogro }: { celebrateLogro: string | null }
   );
 }
 
-export function ActivityDetailOverlay({ detailAct, setDetailAct, projects, openEditModal }: OverlaysProps) {
+export function ActivityDetailOverlay({ detailAct, setDetailAct, projects, openEditModal }: ActivityDetailProps) {
   return (
     <AnimatePresence>
       {detailAct && (() => {

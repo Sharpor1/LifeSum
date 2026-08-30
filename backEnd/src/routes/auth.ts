@@ -15,7 +15,7 @@ const GUEST_TIMEOUT_MS = GUEST_TIMEOUT_SECONDS * 1000;
 
 function hasExpired(db: any, userId: string): boolean {
   const row = db.prepare("SELECT expires_at FROM users WHERE id = ?").get(userId) as { expires_at: string | null } | undefined;
-  if (!row || row.expires_at === null) return false; // cuentas permanentes (admin) nunca expiran
+  if (!row || row.expires_at === null) return false;
   return row.expires_at < new Date().toISOString();
 }
 
@@ -63,23 +63,20 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
     return;
   }
   const db = getDb();
-  const session = db.prepare("SELECT s.user_id, u.auth_type FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token = ?").get(token) as { user_id: string; auth_type: string } | undefined;
+  const session = db.prepare("SELECT user_id FROM sessions WHERE token = ?").get(token) as { user_id: string } | undefined;
   if (!session) {
     res.status(401).json({ error: "Invalid or expired token" });
     return;
   }
   // Si la cuenta temporal expiró por inactividad, la sesión deja de ser válida
-  if (!session.auth_type || session.auth_type !== "real") {
-    if (hasExpired(db, session.user_id)) {
-      cleanupExpiredUsers();
-      res.status(401).json({ error: "Sesión expirada por inactividad" });
-      return;
-    }
-    // Mantener viva la cuenta mientras el cliente sigue haciendo peticiones
-    touchUser(db, session.user_id);
+  if (hasExpired(db, session.user_id)) {
+    cleanupExpiredUsers();
+    res.status(401).json({ error: "Sesión expirada por inactividad" });
+    return;
   }
+  // Mantener viva la cuenta mientras el cliente sigue haciendo peticiones
+  touchUser(db, session.user_id);
   (req as any).userId = session.user_id;
-  (req as any).authType = session.auth_type;
   next();
 }
 
@@ -136,21 +133,19 @@ router.post("/verify", (req: Request, res: Response) => {
     return;
   }
   const db = getDb();
-  const session = db.prepare("SELECT s.user_id, u.username, u.auth_type, u.expires_at FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token = ?").get(token) as { user_id: string; username: string; auth_type: string; expires_at: string | null } | undefined;
+  const session = db.prepare("SELECT s.user_id, u.username, u.expires_at FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token = ?").get(token) as { user_id: string; username: string; expires_at: string | null } | undefined;
   if (!session) {
     res.json({ valid: false });
     return;
   }
   // Cuentas temporales que expiraron por inactividad dejan de ser válidas
-  if (session.auth_type !== "real" && session.expires_at !== null && session.expires_at < new Date().toISOString()) {
+  if (session.expires_at !== null && session.expires_at < new Date().toISOString()) {
     cleanupExpiredUsers();
     res.json({ valid: false });
     return;
   }
-  if (session.auth_type !== "real") {
-    touchUser(db, session.user_id);
-  }
-  res.json({ valid: true, user: { id: session.user_id, username: session.username, authType: session.auth_type } });
+  touchUser(db, session.user_id);
+  res.json({ valid: true, user: { id: session.user_id, username: session.username, authType: "test" } });
 });
 
 export default router;

@@ -32,7 +32,6 @@ const ENDPOINTS = [
   { method: "GET", path: "/api/backgrounds", desc: "Fondos personalizados" },
   { method: "POST", path: "/api/backgrounds/upload", desc: "Sube un fondo" },
   { method: "DELETE", path: "/api/backgrounds/:id", desc: "Elimina un fondo" },
-  { method: "GET", path: "/api/admin", desc: "Panel de administración" },
   { method: "GET", path: "/api/json", desc: "Estado del servidor en JSON" },
 ];
 

@@ -5,7 +5,6 @@ import stickersRouter from "./routes/stickers.js";
 import completionsRouter from "./routes/completions.js";
 import customStickersRouter from "./routes/customStickers.js";
 import backgroundsRouter from "./routes/backgrounds.js";
-import adminRouter from "./routes/admin.js";
 import authRouter, { authMiddleware, cleanupExpiredUsers } from "./routes/auth.js";
 import apiDocsRouter from "./apiDocs.js";
 import { runMigrations } from "./migrate.js";
@@ -25,14 +24,9 @@ app.use("/api/completions", authMiddleware, completionsRouter);
 app.use("/api/custom-stickers", authMiddleware, customStickersRouter);
 app.use("/api/backgrounds", authMiddleware, backgroundsRouter);
 app.use("/api/auth", authRouter);
-app.use("/api/admin", adminRouter);
 app.use("/api", apiDocsRouter);
 
 app.use("/uploads", express.static("uploads"));
-
-app.get("/", (_req, res) => {
-  res.redirect("/api/admin");
-});
 
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(`[LifeSum] ❌ Unhandled error:`, err);

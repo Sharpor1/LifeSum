@@ -1,15 +1,4 @@
-import crypto from "crypto";
 import { getDb } from "./db.js";
-
-function uuid(): string {
-  return crypto.randomUUID();
-}
-
-function hashPassword(password: string): string {
-  const salt = crypto.randomBytes(16).toString("hex");
-  const hash = crypto.pbkdf2Sync(password, salt, 1000, 64, "sha512").toString("hex");
-  return `${salt}:${hash}`;
-}
 
 export function runMigrations() {
   const db = getDb();
@@ -18,12 +7,6 @@ export function runMigrations() {
   const userCols = new Set(
     (db.pragma("table_info(users)") as any[]).map((c: any) => c.name)
   );
-  if (!userCols.has("email")) {
-    db.exec("ALTER TABLE users ADD COLUMN email TEXT");
-  }
-  if (!userCols.has("password_hash")) {
-    db.exec("ALTER TABLE users ADD COLUMN password_hash TEXT");
-  }
   if (!userCols.has("auth_type")) {
     db.exec("ALTER TABLE users ADD COLUMN auth_type TEXT DEFAULT 'test' CHECK(auth_type IN ('real','test'))");
   }
@@ -64,36 +47,4 @@ export function runMigrations() {
   if (!actCols.has("priority")) {
     db.exec("ALTER TABLE activities ADD COLUMN priority TEXT DEFAULT 'media' CHECK(priority IN ('alta','media','baja'))");
   }
-
-  // 4. Seed admin user + reassign orphan data
-  let adminId: string | null = null;
-  const existingAdmin = db.prepare("SELECT id FROM users WHERE auth_type = 'real' LIMIT 1").get() as { id: string } | undefined;
-  if (existingAdmin) {
-    adminId = existingAdmin.id;
-  } else {
-    adminId = uuid();
-    const pwHash = hashPassword("admin123");
-    db.prepare(`
-      INSERT INTO users (id, username, email, password_hash, auth_type)
-      VALUES (?, 'Admin', 'admin@lifesum.app', ?, 'real')
-    `).run(adminId, pwHash);
-  }
-
-  // 5. Reassign orphan projects (user_id is NULL or empty) to admin
-  const orphanProjects = db.prepare("SELECT id FROM projects WHERE user_id IS NULL OR user_id = ''").all() as { id: string }[];
-  if (orphanProjects.length > 0) {
-    const upd = db.prepare("UPDATE projects SET user_id = ? WHERE user_id IS NULL OR user_id = ''");
-    upd.run(adminId);
-  }
-
-  return { adminId, demoId: null };
-}
-
-export function getAdminUserId(): string {
-  const db = getDb();
-  const admin = db.prepare("SELECT id FROM users WHERE auth_type = 'real' LIMIT 1").get() as { id: string } | undefined;
-  if (admin) return admin.id;
-  // fallback: run migration again
-  const result = runMigrations();
-  return result.adminId!;
 }
