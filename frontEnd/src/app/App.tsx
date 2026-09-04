@@ -5,7 +5,7 @@ import { useAuth } from "./auth/AuthContext";
 import Login from "./auth/Login";
 import type { Screen, AppCfg, Project, Activity, Logro, CustomBg } from "./types";
 import { ha, isActivityVisibleInWeek } from "./utils";
-import { INIT_PROJECTS, DEFAULT_BG } from "./constants";
+import { getDefaultProjects, DEFAULT_BG } from "./constants";
 import * as api from "./api";
 import { ConnectionError } from "./api";
 import Sidebar from "./components/Sidebar";
@@ -18,10 +18,21 @@ import StickerPanel from "./components/StickerPanel";
 import Docs from "./components/Docs";
 
 //── Funciones de carga desde localStorage ──
+// Las claves se hacen específicas por usuario (key = lifesum_cfg_<userId>) para
+// que cada cuenta conserve su propia configuración y sus propios datos en caché.
 
-function loadCfg(): AppCfg {
+function cfgKey(userId?: string) { return userId ? `lifesum_cfg_${userId}` : "lifesum_cfg"; }
+function projectsKey(userId?: string) { return userId ? `lifesum_projects_${userId}` : "lifesum_projects"; }
+function stickersKey(userId?: string) { return userId ? `lifesum_stickers_${userId}` : "lifesum_stickers"; }
+function customStickersKey(userId?: string) { return userId ? `lifesum_custom_stickers_${userId}` : "lifesum_custom_stickers"; }
+function customBackgroundsKey(userId?: string) { return userId ? `lifesum_custom_backgrounds_${userId}` : "lifesum_custom_backgrounds"; }
+function activityDoneKey(userId?: string) { return userId ? `lifesum_activity_done_${userId}` : "lifesum_activity_done"; }
+function completionLogKey(userId?: string) { return userId ? `lifesum_completion_log_${userId}` : "lifesum_completion_log"; }
+function completedDaysKey(userId?: string) { return userId ? `lifesum_completed_days_${userId}` : "lifesum_completed_days"; }
+
+function loadCfg(userId?: string): AppCfg {
   try {
-    const raw = localStorage.getItem("lifesum_cfg");
+    const raw = localStorage.getItem(cfgKey(userId));
     if (raw) return JSON.parse(raw);
   } catch {}
   return {
@@ -32,49 +43,49 @@ function loadCfg(): AppCfg {
   };
 }
 
-function loadStickers(): { id: string; stickerId: string; x: number; y: number }[] {
+function loadStickers(userId?: string): { id: string; stickerId: string; x: number; y: number }[] {
   try {
-    const raw = localStorage.getItem("lifesum_stickers");
+    const raw = localStorage.getItem(stickersKey(userId));
     if (raw) return JSON.parse(raw);
   } catch {}
   return [];
 }
 
-function loadCustomStickers(): { id: string; dataUrl: string; label: string }[] {
+function loadCustomStickers(userId?: string): { id: string; dataUrl: string; label: string }[] {
   try {
-    const raw = localStorage.getItem("lifesum_custom_stickers");
+    const raw = localStorage.getItem(customStickersKey(userId));
     if (raw) return JSON.parse(raw);
   } catch {}
   return [];
 }
 
-function loadCustomBackgrounds(): CustomBg[] {
+function loadCustomBackgrounds(userId?: string): CustomBg[] {
   try {
-    const raw = localStorage.getItem("lifesum_custom_backgrounds");
+    const raw = localStorage.getItem(customBackgroundsKey(userId));
     if (raw) return JSON.parse(raw);
   } catch {}
   return [];
 }
 
-function loadActivityDone(): Record<string, boolean> {
+function loadActivityDone(userId?: string): Record<string, boolean> {
   try {
-    const raw = localStorage.getItem("lifesum_activity_done");
+    const raw = localStorage.getItem(activityDoneKey(userId));
     if (raw) return JSON.parse(raw);
   } catch {}
   return {};
 }
 
-function loadCompletionLog(): Record<string, number> {
+function loadCompletionLog(userId?: string): Record<string, number> {
   try {
-    const raw = localStorage.getItem("lifesum_completion_log");
+    const raw = localStorage.getItem(completionLogKey(userId));
     if (raw) return JSON.parse(raw);
   } catch {}
   return {};
 }
 
-function loadCompletedDays(): string[] {
+function loadCompletedDays(userId?: string): string[] {
   try {
-    const raw = localStorage.getItem("lifesum_completed_days");
+    const raw = localStorage.getItem(completedDaysKey(userId));
     if (raw) return JSON.parse(raw);
   } catch {}
   return [
@@ -85,18 +96,20 @@ function loadCompletedDays(): string[] {
 
 export default function App() {
   const { user, token, loading } = useAuth();
+  const userId = user?.id;
+  const isAuthed = Boolean(token && userId);
   const [screen, setScreen] = useState<Screen>("dashboard");
-  const [cfg, setCfg] = useState<AppCfg>(loadCfg);
+  const [cfg, setCfg] = useState<AppCfg>(() => loadCfg(userId));
   const [projects, setProjects] = useState<Project[]>([]);
-  const [stickerList, setStickerList] = useState(loadStickers);
-  const [customStickers, setCustomStickers] = useState(loadCustomStickers);
-  const [customBackgrounds, setCustomBackgrounds] = useState(loadCustomBackgrounds);
+  const [stickerList, setStickerList] = useState(() => loadStickers(userId));
+  const [customStickers, setCustomStickers] = useState(() => loadCustomStickers(userId));
+  const [customBackgrounds, setCustomBackgrounds] = useState(() => loadCustomBackgrounds(userId));
   const [stickerPanelOpen, setStickerPanelOpen] = useState(false);
   const [weekOff, setWeekOff] = useState(0);
   const [calFilter, setCalFilter] = useState<string | null>(null);
-  const [activityDone, setActivityDone] = useState(loadActivityDone);
-  const [completionLog, setCompletionLog] = useState(loadCompletionLog);
-  const [completedDays, setCompletedDays] = useState(loadCompletedDays);
+  const [activityDone, setActivityDone] = useState(() => loadActivityDone(userId));
+  const [completionLog, setCompletionLog] = useState(() => loadCompletionLog(userId));
+  const [completedDays, setCompletedDays] = useState(() => loadCompletedDays(userId));
   const [detailAct, setDetailAct] = useState<Activity | null>(null);
   const [celebrateAct, setCelebrateAct] = useState<{ title: string; emoji: string; color: string } | null>(null);
   const [celebrateLogro, setCelebrateLogro] = useState<string | null>(null);
@@ -109,15 +122,37 @@ export default function App() {
   const lastProjectsJson = useRef("");
   const needsInitSync = useRef(false);
 
+  // Cuando cambia el usuario de la sesión (login/logout) se recargan todos los
+  // datos locales con los de ESE usuario, sin arrastrar los del anterior.
   useEffect(() => {
+    initialized.current = false;
+    needsInitSync.current = false;
+    lastProjectsJson.current = "";
+    setCfg(loadCfg(userId));
+    setProjects([]);
+    setStickerList(loadStickers(userId));
+    setCustomStickers(loadCustomStickers(userId));
+    setCustomBackgrounds(loadCustomBackgrounds(userId));
+    setActivityDone(loadActivityDone(userId));
+    setCompletionLog(loadCompletionLog(userId));
+    setCompletedDays(loadCompletedDays(userId));
+    setDetailAct(null);
+    setCelebrateAct(null);
+    setCelebrateLogro(null);
+    setScreen("dashboard");
+  }, [userId]);
+
+  useEffect(() => {
+    if (!isAuthed) return;
     api.fetchProjects()
       .then((data) => {
         if (data.length > 0) {
           setProjects(data);
           lastProjectsJson.current = JSON.stringify(data);
         } else {
-          setProjects(INIT_PROJECTS);
-          lastProjectsJson.current = JSON.stringify(INIT_PROJECTS);
+          const defaults = getDefaultProjects();
+          setProjects(defaults);
+          lastProjectsJson.current = JSON.stringify(defaults);
           needsInitSync.current = true;
         }
         initialized.current = true;
@@ -129,32 +164,34 @@ export default function App() {
           toast.error("Error al cargar datos del servidor. Usando datos locales.", { duration: 4000 });
         }
         try {
-          const cached = localStorage.getItem("lifesum_projects");
+          const cached = localStorage.getItem(projectsKey(userId));
           if (cached) {
             const parsed = JSON.parse(cached);
             setProjects(parsed);
             lastProjectsJson.current = cached;
           } else {
-            setProjects(INIT_PROJECTS);
-            lastProjectsJson.current = JSON.stringify(INIT_PROJECTS);
+            const defaults = getDefaultProjects();
+            setProjects(defaults);
+            lastProjectsJson.current = JSON.stringify(defaults);
             needsInitSync.current = true;
           }
         } catch {
-          setProjects(INIT_PROJECTS);
-          lastProjectsJson.current = JSON.stringify(INIT_PROJECTS);
+          const defaults = getDefaultProjects();
+          setProjects(defaults);
+          lastProjectsJson.current = JSON.stringify(defaults);
           needsInitSync.current = true;
         }
         initialized.current = true;
       });
-  }, []);
+  }, [userId, isAuthed]);
 
-  useEffect(() => { localStorage.setItem("lifesum_cfg", JSON.stringify(cfg)); }, [cfg]);
-  useEffect(() => { localStorage.setItem("lifesum_stickers", JSON.stringify(stickerList)); }, [stickerList]);
-  useEffect(() => { localStorage.setItem("lifesum_custom_stickers", JSON.stringify(customStickers)); }, [customStickers]);
-  useEffect(() => { localStorage.setItem("lifesum_custom_backgrounds", JSON.stringify(customBackgrounds)); }, [customBackgrounds]);
-  useEffect(() => { localStorage.setItem("lifesum_activity_done", JSON.stringify(activityDone)); }, [activityDone]);
-  useEffect(() => { localStorage.setItem("lifesum_completion_log", JSON.stringify(completionLog)); }, [completionLog]);
-  useEffect(() => { localStorage.setItem("lifesum_completed_days", JSON.stringify(completedDays)); }, [completedDays]);
+  useEffect(() => { localStorage.setItem(cfgKey(userId), JSON.stringify(cfg)); }, [cfg, userId]);
+  useEffect(() => { localStorage.setItem(stickersKey(userId), JSON.stringify(stickerList)); }, [stickerList, userId]);
+  useEffect(() => { localStorage.setItem(customStickersKey(userId), JSON.stringify(customStickers)); }, [customStickers, userId]);
+  useEffect(() => { localStorage.setItem(customBackgroundsKey(userId), JSON.stringify(customBackgrounds)); }, [customBackgrounds, userId]);
+  useEffect(() => { localStorage.setItem(activityDoneKey(userId), JSON.stringify(activityDone)); }, [activityDone, userId]);
+  useEffect(() => { localStorage.setItem(completionLogKey(userId), JSON.stringify(completionLog)); }, [completionLog, userId]);
+  useEffect(() => { localStorage.setItem(completedDaysKey(userId), JSON.stringify(completedDays)); }, [completedDays, userId]);
 
   // El nombre mostrado siempre se sincroniza con el usuario de la sesión actual
   useEffect(() => {
@@ -167,7 +204,7 @@ export default function App() {
     const json = JSON.stringify(projects);
     if (json === lastProjectsJson.current && !needsInitSync.current) return;
 
-    localStorage.setItem("lifesum_projects", json);
+    localStorage.setItem(projectsKey(userId), json);
 
     const shouldSync = needsInitSync.current;
     needsInitSync.current = false;
@@ -182,7 +219,7 @@ export default function App() {
     }, shouldSync ? 100 : 500);
 
     return () => clearTimeout(timer);
-  }, [projects]);
+  }, [projects, userId]);
 
   useEffect(() => {
     if (!initialized.current) return;

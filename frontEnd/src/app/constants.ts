@@ -1,4 +1,6 @@
-import type { Project } from "./types";
+import type { Logro, Project } from "./types";
+
+function uid() { return Math.random().toString(36).slice(2, 9); }
 
 export const DEFAULT_BG = "https://images.unsplash.com/photo-1464802686167-b939a6910659?w=1920&h=1080&fit=crop&auto=format";
 export const HOURS = Array.from({ length: 17 }, (_, i) => i + 7);
@@ -21,6 +23,52 @@ export const TIPS = [
   "Celebra los pequeños logros — son los ladrillos de los grandes. 🏆",
   "¡Hoy puede ser el mejor stream / video que hayas hecho! Sal y compruébalo. 🚀",
 ];
+
+// Devuelve una copia de los proyectos por defecto con IDs únicos. Esto evita
+// que dos usuarios compartan los mismos IDs globales (claves primarias), de
+// modo que cada usuario tenga sus propias tareas ancladas a su cuenta.
+export function getDefaultProjects(): Project[] {
+  const newId = () => `d_${uid()}${uid()}`;
+  const logger = () => `lg_${uid()}${uid()}`;
+  const projectIdMap = new Map<string, string>();
+  const activityIdMap = new Map<string, string>();
+  const logroIdMap = new Map<string, string>();
+
+  function remap<T extends string, V>(map: Map<string, V>, oldId: string, make: () => V): V {
+    const existing = map.get(oldId);
+    if (existing) return existing;
+    const fresh = make();
+    map.set(oldId, fresh);
+    return fresh;
+  }
+
+  const remapLogro = (l: Logro): Logro => ({
+    ...l,
+    id: remap(logroIdMap, l.id, logger),
+    triggerActivityId: l.triggerActivityId
+      ? (activityIdMap.get(l.triggerActivityId) ?? l.triggerActivityId)
+      : undefined,
+  });
+
+  const clone = (p: Project): Project => {
+    const pId = remap(projectIdMap, p.id, newId);
+    const activities = p.activities.map((a) => ({
+      ...a,
+      id: remap(activityIdMap, a.id, newId),
+      projectId: pId,
+      logros: a.logros.map(remapLogro),
+    }));
+    return {
+      ...p,
+      id: pId,
+      activities,
+      logros: p.logros.map(remapLogro),
+      links: p.links.map((l) => ({ ...l, id: newId() })),
+    };
+  };
+
+  return INIT_PROJECTS.map(clone);
+}
 
 export const INIT_PROJECTS: Project[] = [
   {

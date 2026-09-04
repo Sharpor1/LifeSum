@@ -3,7 +3,7 @@ import { useAuth } from "./AuthContext";
 
 export default function Login() {
   const { login } = useAuth();
-  const [username, setUsername] = useState("");
+  const [username, setUsername] = useState(() => localStorage.getItem("lifesum_last_username") || "");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -11,6 +11,7 @@ export default function Login() {
     e.preventDefault();
     if (!username.trim()) { setError("Escribe tu nombre para continuar"); return; }
     setError("");
+    localStorage.setItem("lifesum_last_username", username.trim());
     setBusy(true);
     try {
       const r = await fetch("/api/auth/login", {
@@ -58,8 +59,8 @@ export default function Login() {
           </form>
 
           <div className="mt-6 p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 text-white/70 text-xs leading-relaxed text-center">
-            Tu progreso queda guardado en esta sesión. Si cierras la página, se
-            elimina automáticamente a los 3 minutos.
+            Tu progreso queda guardado en esta sesión. Las tareas van ancladas a
+            tu nombre. Si cierras la página, la sesión se elimina a los 30 segundos.
           </div>
         </div>
       </div>

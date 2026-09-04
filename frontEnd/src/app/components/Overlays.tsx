@@ -26,7 +26,7 @@ export function CelebrationOverlay({ celebrateAct }: { celebrateAct: { title: st
             <p className="text-white/80 text-sm font-semibold uppercase tracking-widest mb-1">¡Actividad completada!</p>
             <p className="text-white text-3xl font-black leading-tight">{celebrateAct.title}</p>
             <div className="flex justify-center gap-2 mt-4 text-2xl">
-              {"🎉🌟✨🏆🎊".split("").map((e, i) => (
+              {Array.from("🎉🌟✨🏆🎊").map((e, i) => (
                 <motion.span key={i} animate={{ y: [0, -10, 0] }} transition={{ delay: i * 0.08, repeat: 3, duration: 0.4 }}>{e}</motion.span>
               ))}
             </div>

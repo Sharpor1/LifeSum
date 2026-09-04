@@ -8,9 +8,9 @@ function uuid(): string {
 
 const router = Router();
 
-// Segundos de inactividad antes de borrar una cuenta temporal (coincide con el
-// mensaje "3 minutos" de la pantalla de inicio de sesión)
-export const GUEST_TIMEOUT_SECONDS = 180;
+// Segundos de inactividad antes de borrar una cuenta temporal (debe coincidir
+// con el mensaje de la pantalla de inicio de sesión, "30 segundos")
+export const GUEST_TIMEOUT_SECONDS = 30;
 const GUEST_TIMEOUT_MS = GUEST_TIMEOUT_SECONDS * 1000;
 
 function hasExpired(db: any, userId: string): boolean {
