@@ -88,7 +88,11 @@ router.post("/login", (req: Request, res: Response) => {
     res.status(400).json({ error: "Ingresa tu nombre para iniciar sesión" });
     return;
   }
-  const name = String(username).trim().slice(0, 60);
+  const name = String(username).trim().replace(/[\u0000-\u001F\u007F]/g, "").slice(0, 60);
+  if (!name) {
+    res.status(400).json({ error: "Nombre inválido" });
+    return;
+  }
   const db = getDb();
   let user = db.prepare("SELECT id FROM users WHERE username = ? AND auth_type = 'test' AND expires_at IS NOT NULL AND expires_at > ? LIMIT 1")
     .get(name, new Date().toISOString()) as { id: string } | undefined;

@@ -3,6 +3,62 @@ import { getDb } from "../db.js";
 
 const router = Router();
 
+function str(v: any, fallback: string, maxLen = 500): string {
+  if (v === undefined || v === null) return fallback;
+  return String(v).slice(0, maxLen);
+}
+
+function cleanProject(body: any) {
+  const p = body || {};
+  return {
+    id: str(p.id, "", 100),
+    name: str(p.name, "", 200),
+    color: str(p.color, "#a855f7", 50),
+    emoji: str(p.emoji, "📦", 50),
+    description: str(p.description, "", 5000),
+    links: Array.isArray(p.links) ? p.links.slice(0, 50).map((l: any) => ({
+      id: str(l?.id, "", 100),
+      label: str(l?.label, "", 200),
+      url: str(l?.url, "", 2000),
+    })) : [],
+    logros: Array.isArray(p.logros) ? p.logros.slice(0, 100).map((l: any) => ({
+      id: str(l?.id, "", 100),
+      title: str(l?.title, "", 300),
+      icon: str(l?.icon, "🏆", 50),
+      completed: Boolean(l?.completed),
+      current: typeof l?.current === "number" ? l.current : null,
+      target: typeof l?.target === "number" ? l.target : null,
+      triggerActivityId: str(l?.triggerActivityId, "", 100) || null,
+      triggerCount: typeof l?.triggerCount === "number" ? l.triggerCount : null,
+    })) : [],
+    activities: Array.isArray(p.activities) ? p.activities.slice(0, 200).map((a: any) => ({
+      id: str(a?.id, "", 100),
+      title: str(a?.title, "", 300),
+      description: str(a?.description, "", 5000),
+      hours: typeof a?.hours === "number" ? a.hours : 1,
+      day: typeof a?.day === "number" ? a.day : null,
+      startHour: typeof a?.startHour === "number" ? a.startHour : null,
+      regularity: str(a?.regularity, "regular", 20),
+      priority: str(a?.priority, "media", 20),
+      noteColor: str(a?.noteColor, "#fef08a", 50),
+      schedWeek: typeof a?.schedWeek === "number" ? a.schedWeek : 0,
+      semiWeeks: typeof a?.semiWeeks === "number" ? a.semiWeeks : null,
+      semiTarget: typeof a?.semiTarget === "number" ? a.semiTarget : null,
+      semiCompletions: typeof a?.semiCompletions === "number" ? a.semiCompletions : 0,
+      logros: Array.isArray(a?.logros) ? a.logros.slice(0, 100).map((l: any) => ({
+        id: str(l?.id, "", 100),
+        title: str(l?.title, "", 300),
+        icon: str(l?.icon, "🏆", 50),
+        completed: Boolean(l?.completed),
+        current: typeof l?.current === "number" ? l.current : null,
+        target: typeof l?.target === "number" ? l.target : null,
+        triggerActivityId: str(l?.triggerActivityId, "", 100) || null,
+        triggerCount: typeof l?.triggerCount === "number" ? l.triggerCount : null,
+      })) : [],
+    })) : [],
+  };
+}
+
 // Convierte una fila de la BD (con sus relaciones) al formato JSON del frontend
 function rowToProject(row: any, links: any[], activities: any[], logros: any[]) {
   const projectLogros = logros
@@ -61,10 +117,31 @@ function mapLogro(l: any) {
 router.get("/", (req, res) => {
   const db = getDb();
   const userId = (req as any).userId;
-  const projects = db.prepare("SELECT * FROM projects WHERE user_id = ?").all(userId);
-  const links = db.prepare("SELECT * FROM project_links").all();
-  const activities = db.prepare("SELECT * FROM activities").all();
-  const logros = db.prepare("SELECT * FROM logros").all();
+  const projects = db.prepare("SELECT * FROM projects WHERE user_id = ?").all(userId) as any[];
+  const projectIds = projects.map((p: any) => p.id);
+  let links: any[] = [];
+  let activities: any[] = [];
+  let logros: any[] = [];
+  if (projectIds.length > 0) {
+    const placeholders = projectIds.map(() => "?").join(",");
+    links = db.prepare(`SELECT * FROM project_links WHERE project_id IN (${placeholders})`).all(...projectIds) as any[];
+    activities = db.prepare(`SELECT * FROM activities WHERE project_id IN (${placeholders})`).all(...projectIds) as any[];
+    const activityIds = activities.map((a: any) => a.id);
+    const conditions: string[] = [];
+    const params: string[] = [];
+    if (projectIds.length > 0) {
+      conditions.push(`(owner_type = 'project' AND owner_id IN (${placeholders}))`);
+      params.push(...projectIds);
+    }
+    if (activityIds.length > 0) {
+      const actPlaceholders = activityIds.map(() => "?").join(",");
+      conditions.push(`(owner_type = 'activity' AND owner_id IN (${actPlaceholders}))`);
+      params.push(...activityIds);
+    }
+    if (conditions.length > 0) {
+      logros = db.prepare(`SELECT * FROM logros WHERE ${conditions.join(" OR ")}`).all(...params) as any[];
+    }
+  }
 
   const result = projects.map((p: any) => rowToProject(p, links, activities, logros));
   res.json(result);
@@ -95,7 +172,7 @@ router.get("/:id", (req, res) => {
 router.post("/", (req, res) => {
   const db = getDb();
   const userId = (req as any).userId;
-  const p = req.body;
+  const p = cleanProject(req.body);
   if (!p.id || !p.name) { res.status(400).json({ error: "id and name are required" }); return; }
 
   const txn = db.transaction(() => {
@@ -153,7 +230,7 @@ router.put("/:id", (req, res) => {
   const existing = db.prepare("SELECT id FROM projects WHERE id = ? AND user_id = ?").get(req.params.id, userId);
   if (!existing) { res.status(404).json({ error: "Project not found" }); return; }
 
-  const p = req.body;
+  const p = cleanProject(req.body);
   const txn = db.transaction(() => {
     db.prepare("UPDATE projects SET name = ?, color = ?, emoji = ?, description = ? WHERE id = ?")
       .run(p.name, p.color, p.emoji, p.description, req.params.id);

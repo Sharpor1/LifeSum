@@ -252,7 +252,7 @@ export default function App() {
   const tp = dark ? "text-white" : "text-gray-900";
   const ts = dark ? "text-white/55" : "text-gray-500";
   const sb = dark ? "bg-black/45 backdrop-blur-xl" : "bg-white/65 backdrop-blur-xl";
-  const printBgColor = cfg.printBg === "white" ? "#ffffff" : cfg.bgColor;
+  const printBgColor = cfg.printBg === "white" ? "#ffffff" : (typeof cfg.bgColor === "string" && /^#[0-9a-fA-F]{6}$/.test(cfg.bgColor) ? cfg.bgColor : "#1a0533");
   const allActs = projects.flatMap((p) => p.activities);
   const visActs = (calFilter ? projects.filter((p) => p.id === calFilter) : projects)
     .flatMap((p) => p.activities)
@@ -329,6 +329,7 @@ export default function App() {
   function handleStickerUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.size > 600 * 1024) { toast.error("La imagen es demasiado grande (máx ~600 KB)"); if (e.target) e.target.value = ""; return; }
     const reader = new FileReader();
     reader.onload = (ev) => {
       const dataUrl = ev.target?.result as string;

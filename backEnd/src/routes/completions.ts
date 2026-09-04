@@ -3,6 +3,11 @@ import { getDb } from "../db.js";
 
 const router = Router();
 
+function isValidDateString(s: any): boolean {
+  if (typeof s !== "string") return false;
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(Date.parse(s + "T00:00:00Z"));
+}
+
 // GET /api/completions — listar completados del usuario
 router.get("/", (req, res) => {
   const db = getDb();
@@ -16,8 +21,12 @@ router.post("/", (req, res) => {
   const userId = (req as any).userId;
   const { id, activityId, completedAt } = req.body;
   if (!id || !activityId) { res.status(400).json({ error: "id and activityId are required" }); return; }
-  const date = completedAt ?? new Date().toISOString().slice(0, 10);
-  db.prepare("INSERT INTO activity_completions (id, user_id, activity_id, completed_at) VALUES (?, ?, ?, ?)").run(id, userId, activityId, date);
+  if (completedAt !== undefined && !isValidDateString(completedAt)) {
+    res.status(400).json({ error: "Invalid completedAt" });
+    return;
+  }
+  const date = isValidDateString(completedAt) ? completedAt : new Date().toISOString().slice(0, 10);
+  db.prepare("INSERT INTO activity_completions (id, user_id, activity_id, completed_at) VALUES (?, ?, ?, ?)").run(String(id), userId, String(activityId), date);
   res.status(201).json({ ok: true });
 });
 

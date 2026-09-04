@@ -3,6 +3,10 @@ import { getDb } from "../db.js";
 
 const router = Router();
 
+function isFiniteNumber(v: any): boolean {
+  return typeof v === "number" && Number.isFinite(v);
+}
+
 // GET /api/stickers — listar stickers del usuario
 router.get("/", (req, res) => {
   const db = getDb();
@@ -16,7 +20,10 @@ router.post("/", (req, res) => {
   const userId = (req as any).userId;
   const { id, stickerId, x, y } = req.body;
   if (!id || !stickerId) { res.status(400).json({ error: "id and stickerId are required" }); return; }
-  db.prepare("INSERT INTO stickers (id, user_id, sticker_id, x, y) VALUES (?, ?, ?, ?, ?)").run(id, userId, stickerId, x ?? 0, y ?? 0);
+  const coordX = typeof x === "number" ? x : 0;
+  const coordY = typeof y === "number" ? y : 0;
+  db.prepare("INSERT INTO stickers (id, user_id, sticker_id, x, y) VALUES (?, ?, ?, ?, ?)")
+    .run(String(id), userId, String(stickerId).slice(0, 100), coordX, coordY);
   res.status(201).json({ ok: true });
 });
 
@@ -25,11 +32,18 @@ router.put("/batch", (req, res) => {
   const db = getDb();
   const userId = (req as any).userId;
   const stickers = req.body as { id: string; stickerId: string; x: number; y: number }[];
+  if (!Array.isArray(stickers) || stickers.length > 500) {
+    res.status(400).json({ error: "Invalid stickers payload" });
+    return;
+  }
   const txn = db.transaction(() => {
     db.prepare("DELETE FROM stickers WHERE user_id = ?").run(userId);
     if (stickers?.length) {
       const ins = db.prepare("INSERT INTO stickers (id, user_id, sticker_id, x, y) VALUES (?, ?, ?, ?, ?)");
-      for (const s of stickers) ins.run(s.id, userId, s.stickerId, s.x, s.y);
+      for (const s of stickers) {
+        if (!s || !s.id || !s.stickerId) continue;
+        ins.run(String(s.id), userId, String(s.stickerId).slice(0, 100), isFiniteNumber(s.x) ? s.x : 0, isFiniteNumber(s.y) ? s.y : 0);
+      }
     }
   });
   txn();

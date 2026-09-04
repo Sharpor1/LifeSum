@@ -29,15 +29,14 @@ const ENDPOINTS = [
 ];
 
 const DB_TABLES = [
-  { name: "users", cols: ["id", "username", "is_dark", "bg_type", "bg_image", "bg_color", "accent_color", "card_color", "card_alpha", "notifications", "print_bg", "font_size"] },
-  { name: "projects", cols: ["id", "user_id", "name", "color", "emoji", "description"] },
+  { name: "projects", cols: ["id", "name", "color", "emoji", "description"] },
   { name: "project_links", cols: ["id", "project_id", "label", "url"] },
   { name: "activities", cols: ["id", "project_id", "title", "description", "hours", "day", "start_hour", "regularity", "priority", "note_color", "sched_week", "semi_weeks", "semi_target", "semi_completions"] },
   { name: "logros", cols: ["id", "owner_type", "owner_id", "title", "icon", "completed", "current", "target", "trigger_activity_id", "trigger_count"] },
-  { name: "activity_completions", cols: ["id", "user_id", "activity_id", "completed_at"] },
-  { name: "stickers", cols: ["id", "user_id", "sticker_id", "x", "y"] },
-  { name: "custom_stickers", cols: ["id", "user_id", "data_url", "label"] },
-  { name: "custom_backgrounds", cols: ["id", "user_id", "file_path", "label"] },
+  { name: "activity_completions", cols: ["id", "activity_id", "completed_at"] },
+  { name: "stickers", cols: ["id", "sticker_id", "x", "y"] },
+  { name: "custom_stickers", cols: ["id", "data_url", "label"] },
+  { name: "custom_backgrounds", cols: ["id", "file_path", "label"] },
 ];
 
 function renderPage(): string {
