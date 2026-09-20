@@ -61,6 +61,13 @@ const loginLimiter = rateLimit({
 runMigrations();
 
 app.use("/api", apiLimiter);
+
+// Endpoint público de salud: lo usan monitores externos (UptimeRobot,
+// cron-job.org) y el cron de Vercel para mantener despierto el backend.
+app.get("/api/health", (_req, res) => {
+  res.json({ status: "ok", uptime: Math.round(process.uptime()), timestamp: new Date().toISOString() });
+});
+
 app.use("/api/projects", authMiddleware, projectsRouter);
 app.use("/api/stickers", authMiddleware, stickersRouter);
 app.use("/api/completions", authMiddleware, completionsRouter);
