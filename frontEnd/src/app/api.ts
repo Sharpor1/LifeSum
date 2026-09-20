@@ -51,10 +51,19 @@ export interface CustomSticker {
   label: string;
 }
 
+//── Url base de la API ──
+// En producción (Vercel) apunta al backend de Render.
+// En local usa el proxy de vite (vite.config.ts) hacia localhost:3001.
+// Se puede sobrescribir con la variable de entorno VITE_API_URL.
+
+const API_BASE_URL =
+  (import.meta.env.VITE_API_URL as string | undefined) ??
+  (import.meta.env.PROD ? "https://lifesum.onrender.com/api" : "/api");
+
 //── ApiManager: wrapper de fetch con tipado genérico ──
 
 export class ApiManager {
-  constructor(public baseUrl: string = "/api") {}
+  constructor(public baseUrl: string = API_BASE_URL) {}
 
   // Petición HTTP genérica con tipado
   private async request<T>(
@@ -75,7 +84,7 @@ export class ApiManager {
     } catch (err) {
       // TypeError("Failed to fetch") = no hay conexión
       const msg = err instanceof TypeError && err.message === "Failed to fetch"
-        ? `No se puede conectar con el servidor (${this.baseUrl}). Asegúrate de que el backend esté corriendo en http://localhost:3001`
+        ? `No se puede conectar con el servidor (${this.baseUrl}). Asegúrate de que el backend esté disponible.`
         : `Error de conexión: ${(err as Error).message}`;
       throw new ConnectionError(msg);
     }
