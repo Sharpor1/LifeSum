@@ -56,7 +56,7 @@ export interface CustomSticker {
 // En local usa el proxy de vite (vite.config.ts) hacia localhost:3001.
 // Se puede sobrescribir con la variable de entorno VITE_API_URL.
 
-const API_BASE_URL =
+export const API_BASE_URL =
   (import.meta.env.VITE_API_URL as string | undefined) ??
   (import.meta.env.PROD ? "https://lifesum.onrender.com/api" : "/api");
 

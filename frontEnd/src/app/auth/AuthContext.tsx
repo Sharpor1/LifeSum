@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
+import { API_BASE_URL } from "../api";
 
 interface AuthUser {
   id: string;
@@ -27,7 +28,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (savedToken && savedUser) {
       try {
         const parsed = JSON.parse(savedUser);
-        fetch("/api/auth/verify", {
+        fetch(`${API_BASE_URL}/auth/verify`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ token: savedToken }),
@@ -75,7 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!token) return;
     const beat = () => {
-      fetch("/api/auth/heartbeat", {
+      fetch(`${API_BASE_URL}/auth/heartbeat`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       }).catch(() => {});

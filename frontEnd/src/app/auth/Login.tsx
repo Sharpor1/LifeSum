@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { API_BASE_URL } from "../api";
 import { useAuth } from "./AuthContext";
 
 export default function Login() {
@@ -14,7 +15,7 @@ export default function Login() {
     localStorage.setItem("lifesum_last_username", username.trim());
     setBusy(true);
     try {
-      const r = await fetch("/api/auth/login", {
+      const r = await fetch(`${API_BASE_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: username.trim() }),
